@@ -6,8 +6,11 @@
 class PumpController {
  public:
   void begin();
+  void forceOffForRestart();
   void setTankSample(const TankSample& sample);
+  void setSettings(const SystemSettings& settings) { settings_ = settings; }
   void update(const PhysicalInputs& inputs);
+  const char* requestDashboardOnReason() const;
 
   const TankSample& tankSample() const { return tank_; }
   PumpMode mode() const { return mode_; }
@@ -29,8 +32,10 @@ class PumpController {
   bool autoCycleActive_ = false;
   bool runtimeLockout_ = false;
   bool manualRequest_ = false;
+  bool dashboardManualRequest_ = false;
   bool autoStopInhibit_ = false;
   bool havePumpStart_ = false;
   uint32_t pumpStartedAt_ = 0;
   StopReason lastLoggedStopReason_ = StopReason::NO_DATA;
+  SystemSettings settings_;
 };

@@ -10,8 +10,9 @@ class TankClient {
   void begin();
   void updateWiFi();
   bool isConnected() const;
-  int postReading(const TankReading& reading);
+  int postReading(const TankReading& reading, TankRuntimeConfig& config);
 
  private:
   uint32_t lastWiFiAttemptAt_ = 0;
+  uint32_t bootId_ = 0;
 };

@@ -1,4 +1,4 @@
-# Water Pump Automation V2.2 — Tank Controller (Tahap 2)
+# Water Pump Automation V2.3 — Tank Controller
 
 Firmware untuk ESP32 DevKit V1 / ESP32-WROOM-32 sebagai Wi-Fi client. Firmware membaca AJ-SR04M dan float switch, menghitung persentase level, lalu mengirim data ke HTTP server di Pump Controller Tahap 1.
 
@@ -52,7 +52,7 @@ Hasil dibatasi pada 0–100%. `sensor_valid` melaporkan validitas ultrasonic; `f
 
 ## Komunikasi
 
-Tank Controller bergabung ke AP Pump Controller `PumpCtrl-Setup` dan POST setiap detik ke `http://192.168.4.1/api/v1/tank` dengan format yang sama dengan Tahap 1:
+Tank Controller bergabung ke AP Pump Controller `PumpCtrl-Setup` dan POST tiap pembacaan sensor (default setiap satu detik) ke `http://192.168.4.1/api/v1/tank` dengan format yang sama dengan Tahap 1:
 
 ```json
 {"level_percent":34.5,"float_full":false,"sensor_valid":true}
@@ -68,3 +68,12 @@ Jika Wi-Fi terputus, firmware mencoba reconnect. Selama koneksi tidak ada, Pump 
 4. Sebelum integrasi pompa, uji sensor secara terpisah: ubah jarak target dan gerakkan pelampung sambil memeriksa log serta `GET /api/v1/status` pada Pump Controller.
 
 Jangan menghubungkan beban pompa selama uji sensor/komunikasi ini. Tahap berikutnya adalah integrasi dua board dan uji alur kontrol serta kegagalan komunikasi.
+
+
+## Kompatibilitas V2.3
+
+Payload tetap mengirim tiga field wajib V2.2 dan menambahkan `distance_cm`, `boot_id`, `seq`, serta `firmware`. Pump Controller lama tetap bisa menerima payload lama, sedangkan Pump V2.3 menolak sequence duplikat/mundur bila boot ID dan sequence disertakan. Respons HTTP Pump membawa konfigurasi sensor sementara yang diterapkan Tank Controller: kalibrasi jarak kosong/penuh, jarak sensor min/maks, interval baca, dan filter median. Tidak ada server/dashboard yang berjalan pada Tank.
+
+Nilai konfigurasi Tank diterima dari Pump melalui koneksi POST keluar yang sudah ada; Tank tidak perlu IP statis dan tidak membuka koneksi balik. Jika konfigurasi belum diterima, nilai compile-time di `include/config.h` tetap menjadi default. Float sensor tetap dinonaktifkan di V2.3 (`ENABLE_FLOAT_SWITCH=false`), namun pembacaan dan field protokol tetap disediakan untuk aktivasi setelah hardware terverifikasi.
+
+Spesifikasi endpoint dan konfigurasi dapat dilihat di [`../docs/api-v1.md`](../docs/api-v1.md). Password Wi-Fi di konfigurasi Tank harus sama dengan AP Pump.

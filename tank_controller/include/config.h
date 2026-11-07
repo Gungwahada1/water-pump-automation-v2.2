@@ -28,6 +28,7 @@ static constexpr uint32_t FLOAT_DEBOUNCE_MS = 50UL;
 // Replace these example values with actual tank calibration before relying on %.
 static constexpr float DISTANCE_AT_EMPTY_CM = 100.0f;
 static constexpr float DISTANCE_AT_FULL_CM = 25.0f;
+static constexpr float TANK_HEIGHT_CM = 120.0f;
 
 static constexpr uint32_t ULTRASONIC_TIMEOUT_US = 30000UL;
 static constexpr float ULTRASONIC_MIN_DISTANCE_CM = 20.0f;

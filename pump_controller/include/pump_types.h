@@ -13,6 +13,12 @@ struct TankSample {
   bool valid = false;
   bool floatFull = false;
   float levelPercent = 0.0f;
+  float distanceCm = 0.0f;
+  bool distanceAvailable = false;
+  uint32_t sequence = 0;
+  uint32_t bootId = 0;
+  bool identityAvailable = false;
+  char firmware[16] = {};
   uint32_t receivedAt = 0;
 };
 
@@ -20,6 +26,8 @@ struct PhysicalInputs {
   PumpMode mode = PumpMode::AUTO_MODE;
   bool pumpOnPressed = false;
   bool pumpOffPressed = false;
+  bool dashboardOnRequested = false;
+  bool dashboardOffRequested = false;
 };
 
 struct PumpStatus {
@@ -31,6 +39,22 @@ struct PumpStatus {
   bool sampleFresh = false;
   uint32_t sampleAgeMs = 0;
   uint32_t pumpRunMs = 0;
+};
+
+enum class DashboardCommandKind : uint8_t { ON, OFF, RESTART };
+struct DashboardCommand { DashboardCommandKind kind = DashboardCommandKind::OFF; uint32_t requestId = 0; };
+struct ControlResult { uint32_t requestId = 0; bool accepted = false; char reason[48] = {}; };
+struct SystemSettings {
+  float autoStartPercent = 20.0f;
+  uint32_t maxPumpRuntimeMs = 1800000UL;
+  uint32_t tankTimeoutMs = 15000UL;
+  float tankHeightCm = 120.0f;
+  float distanceEmptyCm = 100.0f;
+  float distanceFullCm = 25.0f;
+  float sensorMinDistanceCm = 20.0f;
+  float sensorMaxDistanceCm = 450.0f;
+  uint32_t sensorIntervalMs = 1000UL;
+  uint8_t filterCount = 5;
 };
 
 inline const char* modeName(PumpMode mode) {

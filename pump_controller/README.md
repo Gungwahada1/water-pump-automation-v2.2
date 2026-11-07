@@ -1,4 +1,4 @@
-# Water Pump Automation V2.2 — Tahap 1
+# Water Pump Automation V2.3 — Pump Controller
 
 Firmware ESP32 Pump Controller untuk ESP32 DevKit V1 / ESP32-WROOM-32. Firmware menyediakan SoftAP, HTTP API pada task tersendiri, state machine AUTO/MANUAL, input tombol dan selector, serta output SSR dengan level OFF saat boot.
 
@@ -135,3 +135,29 @@ curl -i -X POST http://192.168.4.1/api/v1/tank \
   -H 'Content-Type: application/json' \
   -d '{"level_percent":34.5,"float_full":false,"sensor_valid":true}'
 ```
+
+
+## V2.3 Local Dashboard
+
+Buka `http://192.168.4.1` setelah tersambung ke SoftAP. Dashboard dipisahkan di `src/web_dashboard.cpp`; HTTP API tetap di `src/http_api.cpp`; ring log RAM di `src/system_log.cpp`. UI memakai polling 1,5 detik dan tidak membutuhkan CDN/internet.
+
+Dashboard ON hanya diterima pada MANUAL fisik dengan data Tank segar/valid, level belum 100%, dan tanpa lockout. Persyaratan dicek di API dan dicek ulang oleh state machine; jika data menjadi stale/invalid saat permintaan dashboard memegang pompa, pompa dihentikan. OFF tidak bergantung pada mode dan diprioritaskan di antrean perintah dashboard. Tombol OFF fisik tetap diproses langsung oleh loop kontrol.
+
+`GET/POST /api/v1/config` mengubah konfigurasi Pump dan kalibrasi sensor Tank sementara di RAM, dengan rentang tervalidasi. Tank menerima konfigurasi kalibrasi, jarak sensor, interval pembacaan, dan filter dalam respons POST pembacaan sensor berikutnya; tidak dibutuhkan koneksi balik ke alamat DHCP Tank. Nilai belum disimpan ke Preferences/NVS dan hilang setelah reboot.
+
+Endpoint tambahan: `POST /api/v1/control`, `GET /api/v1/device`, `GET /api/v1/logs`, dan `POST /api/v1/device/restart`. Log berisi maksimum 24 event berbasis uptime. Restart diarahkan ke loop kontrol untuk mengatur SSR OFF sebelum reboot.
+
+Float switch sengaja tetap nonaktif melalui `ENABLE_FLOAT_SWITCH_CUTOFF=false`. Payload dan logika cutoff tetap dipertahankan untuk aktivasi kemudian; verifikasi kontak dan wiring sebelum diaktifkan.
+
+Endpoint dan rentang validasi rinci tersedia di [`../docs/api-v1.md`](../docs/api-v1.md). Ganti password AP bawaan di `include/config.h` dan samakan nilainya pada `tank_controller/include/config.h` sebelum menggunakan kontrol dashboard di luar pengujian pribadi.
+
+
+### Checklist tambahan dashboard V2.3
+
+1. Sambungkan satu HP/laptop ke AP bersama Tank Controller dan buka `http://192.168.4.1`; pastikan halaman tampil tanpa akses internet. AP mengizinkan maksimal dua client, sehingga Tank dan satu client dashboard dapat tersambung bersamaan.
+2. Pastikan level, jarak, status sensor, mode, pompa, dan umur data berubah dari pembacaan Tank. Putuskan Tank dan pastikan status menjadi STALE setelah timeout serta nilai level tidak ditampilkan sebagai nilai terkini.
+3. Uji dashboard ON pada AUTO (harus ditolak), pada MANUAL dengan data segar/valid (dapat diterima), dan dengan data tidak ada/stale/invalid/100% (harus ditolak). Lakukan tanpa beban pompa, gunakan indikator tegangan rendah pada sisi output SSR.
+4. Saat permintaan dashboard menyalakan pompa, putuskan data Tank; pastikan Pump Controller mematikan output. Uji dashboard OFF pada kedua mode. Uji juga tombol OFF fisik saat dashboard melakukan polling.
+5. Ubah konfigurasi dengan nilai valid, cek nilai kembali melalui `GET /api/v1/config`, lalu pastikan Tank menerapkan kalibrasi/interval/filter setelah pembacaan selanjutnya. Kirim nilai di luar rentang dan pastikan ditolak. Restart dan pastikan konfigurasi RAM kembali ke default.
+6. Periksa Device dan Logs, lalu uji restart dengan output SSR tanpa beban dan ukur bahwa OFF sebelum boot berikutnya. Jangan menguji restart saat beban pompa terpasang.
+7. Tutup browser selama AUTO berjalan dan pastikan kontrol otomatis tetap aktif. Uji koneksi ulang AP dan komunikasi Tank. Pengujian operasi 72 jam/7 hari belum dilakukan dan perlu dijalankan pada hardware sebelum operasi permanen.

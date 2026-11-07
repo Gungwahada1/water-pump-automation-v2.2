@@ -8,17 +8,30 @@
 
 class HttpApi {
  public:
-  bool begin(QueueHandle_t tankSamples, QueueHandle_t statusSnapshots);
+  bool begin(QueueHandle_t tankSamples, QueueHandle_t statusSnapshots, QueueHandle_t commands, QueueHandle_t results, QueueHandle_t settings);
 
  private:
   static void taskEntry(void* argument);
   void runServerTask();
   void handleTankPost();
   void handleStatus();
+  void handleControl();
+  void handleDashboard();
+  void handleDevice();
+  void handleLogs();
+  void handleRestart();
+  void handleConfig();
   void handleNotFound();
   void sendJson(int statusCode, JsonDocument& document);
 
   QueueHandle_t tankSamples_ = nullptr;
   QueueHandle_t statusSnapshots_ = nullptr;
+  QueueHandle_t commands_ = nullptr;
+  QueueHandle_t results_ = nullptr;
+  QueueHandle_t settingsQueue_ = nullptr;
   WebServer server_;
+  uint32_t lastTankBootId_ = 0;
+  uint32_t lastTankSequence_ = 0;
+  bool haveTankSequence_ = false;
+  uint32_t nextControlRequestId_ = 1;
 };
