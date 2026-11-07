@@ -2,8 +2,8 @@
 
 Firmware untuk dua ESP32 DevKit V1 / ESP32-WROOM-32:
 
-- [`pump_controller/`](pump_controller/README.md): Wi-Fi SoftAP, dashboard lokal dan API HTTP, AUTO/MANUAL, tombol dan selector, SSR, serta LCD I²C 20x4.
-- [`tank_controller/`](tank_controller/README.md): AJ-SR04M, perhitungan level, koneksi Wi-Fi client, dan HTTP POST.
+- [`pump_controller/`](pump_controller/README.md): Wi-Fi SoftAP, dashboard lokal dan API HTTP, AUTO/MANUAL, tombol ON/OFF/reset dan selector, SSR, serta LCD I²C 20x4.
+- [`tank_controller/`](tank_controller/README.md): AJ-SR04M, perhitungan level, tombol reset, koneksi Wi-Fi client, dan HTTP POST.
 - [`wiring-diagram-water-pump.md`](wiring-diagram-water-pump.md): wiring pin, sensor, LCD, SSR, dan komunikasi.
 
 ## Perilaku konfigurasi saat ini

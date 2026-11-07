@@ -41,12 +41,13 @@ Kode dipisah menurut tanggung jawab: `InputManager` membaca tombol dan selector,
 | Tombol PUMP ON | 26 | Tombol NO antara GPIO dan GND |
 | Tombol PUMP OFF | 27 | Tombol NO antara GPIO dan GND |
 | Selector AUTO/MANUAL | 14 | Saklar menghubungkan GPIO ke GND untuk MANUAL; terbuka = AUTO |
+| Tombol reset eksternal | 33 | Tombol NO ke GND; menekan akan memaksa SSR OFF lalu reboot |
 | LCD SDA | 21 | Ke SDA melalui level shifter I²C bila backpack memakai pull-up 5 V |
 | LCD SCL | 22 | Ke SCL melalui level shifter I²C bila backpack memakai pull-up 5 V |
 | LED status (opsional) | 2 | LED onboard pada banyak DevKit; dapat dinonaktifkan/diubah |
 | Ground | GND | Ground logika sesuai kebutuhan modul SSR |
 
-Semua input tombol memakai pull-up internal dan aktif-LOW. Jangan hubungkan tegangan listrik/tegangan koil pompa ke GPIO. Ground bersama hanya untuk sisi kontrol tegangan rendah dan mengikuti isolasi/modul SSR. Float switch belum dipasang pada board ini.
+Semua input tombol memakai pull-up internal dan aktif-LOW. Tombol reset diproses setelah debounce dan tidak memicu reboot berulang jika tertahan saat board dinyalakan; lepaskan lalu tekan kembali untuk mereset. Tombol ini hanya untuk reboot, bukan emergency stop. Jangan hubungkan tegangan listrik/tegangan koil pompa ke GPIO. Ground bersama hanya untuk sisi kontrol tegangan rendah dan mengikuti isolasi/modul SSR. Float switch belum dipasang pada board ini.
 
 ### LCD I²C 20x4
 
@@ -72,6 +73,7 @@ LCD diperbarui setiap 500 ms di task terpisah dan hanya menulis baris yang berub
 - Mengubah mode ke AUTO memulai evaluasi otomatis dari kondisi sensor terbaru.
 - Proteksi durasi: default 25 menit; nilai dapat diubah di Configuration antara 1–60 menit. Setelah batas tercapai, pompa mati dan terkunci sampai board di-reset. Tombol OFF saja tidak menghapus lockout.
 - Pada boot, output SSR diset OFF sebelum Wi-Fi/server dimulai.
+- Tombol reset eksternal pada GPIO33 meminta controller mengatur SSR OFF melalui state machine sebelum `ESP.restart()`. Pastikan modul SSR juga memiliki keadaan OFF yang aman selama reset/boot.
 
 ## HTTP API Tahap 1
 

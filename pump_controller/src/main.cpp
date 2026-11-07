@@ -118,6 +118,13 @@ void loop() {
     pumpController.setSettings(settings);
 
   PhysicalInputs inputs = inputManager.read();
+  if (inputs.resetPressed) {
+    Serial.println("[INPUT] external reset button pressed; forcing SSR OFF before reboot");
+    pumpController.forceOffForRestart();
+    systemLog().add("External reset button pressed; SSR forced OFF before restart");
+    delay(50);
+    ESP.restart();
+  }
   DashboardCommand command;
   bool dashboardOff = false;
   bool dashboardOn = false;

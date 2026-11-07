@@ -1,4 +1,4 @@
-# Diagram Wiring — Water Pump Automation V2.2
+# Diagram Wiring — Water Pump Automation V2.3
 
 Rancangan ini memakai **dua ESP32 DevKit V1 / ESP32-WROOM-32**. Diagram menunjukkan rangkaian kontrol tegangan rendah dan jalur komunikasi. Tidak ada kabel GPIO antara kedua ESP32; data dikirim lewat Wi-Fi SoftAP Pump Controller.
 
@@ -11,6 +11,7 @@ flowchart LR
     P25["GPIO25 — SSR control"]
     P26["GPIO26 — tombol ON"]
     P27["GPIO27 — tombol OFF"]
+    P33["GPIO33 — tombol reset"]
     P14["GPIO14 — selector mode"]
     P21["GPIO21 — LCD SDA"]
     P22["GPIO22 — LCD SCL"]
@@ -23,6 +24,8 @@ flowchart LR
   BON --> GND
   P27 --> BOFF["Tombol OFF NO"]
   BOFF --> GND
+  P33 --> BRESET["Tombol RESET NO"]
+  BRESET --> GND
   P14 --> MODE["Saklar SPST: AUTO/MANUAL"]
   MODE --> GND
   P21 --> LCD_SDA["LCD backpack SDA; level shifter jika pull-up 5 V"]
@@ -39,13 +42,14 @@ flowchart LR
 | GPIO25 | Ke input kontrol SSR | HIGH = perintah ON; default OFF saat boot |
 | GPIO26 | Tombol ON NO ke GND | Aktif LOW; hanya diterima saat selector MANUAL |
 | GPIO27 | Tombol OFF NO ke GND | Aktif LOW; berlaku di AUTO dan MANUAL; menang jika dua tombol bersamaan |
+| GPIO33 | Tombol RESET NO ke GND | Aktif LOW; debounce 15 ms; Pump Controller memerintah SSR OFF lalu reboot |
 | GPIO14 | Selector SPST ke GND | Terbuka = AUTO; tersambung ke GND = MANUAL |
 | GPIO21 | LCD backpack SDA | I²C SDA; level shifter bila pull-up backpack 5 V |
 | GPIO22 | LCD backpack SCL | I²C SCL; level shifter bila pull-up backpack 5 V |
 | GPIO2 | LED onboard | Indikator keluaran pompa yang diperintah |
 | GND | Ground tombol dan logika SSR sesuai manual modul | Jangan sambungkan sisi beban pompa ke ground GPIO |
 
-Input tombol dan selector memakai pull-up internal. Jangan beri 5 V ke GPIO. Input SSR harus menerima sinyal 3.3 V dari ESP32 dan arusnya harus sesuai kemampuan GPIO; jika modul memerlukan 5 V atau arus lebih besar, gunakan driver transistor yang sesuai. Periksa apakah modul SSR punya terminal `IN+/IN−`, atau `VCC/GND/IN`, dan ikuti skema pabriknya. Jangan menyatukan ground bila modul mengharuskan isolasi optik.
+Input tombol dan selector memakai pull-up internal. Tombol reset adalah tombol NO sesaat, bukan saklar toggle; lepaskan tombol sebelum board dinyalakan agar tidak tertahan. Firmware memerintah SSR OFF sebelum reboot, tetapi tombol ini bukan emergency stop hardware. Jangan beri 5 V ke GPIO. Input SSR harus menerima sinyal 3.3 V dari ESP32 dan arusnya harus sesuai kemampuan GPIO; jika modul memerlukan 5 V atau arus lebih besar, gunakan driver transistor yang sesuai. Periksa apakah modul SSR punya terminal `IN+/IN−`, atau `VCC/GND/IN`, dan ikuti skema pabriknya. Jangan menyatukan ground bila modul mengharuskan isolasi optik.
 
 LCD 20x4 memakai library `hd44780_I2Cexp` dengan deteksi backpack umum. Banyak backpack LCD berdaya 5 V menarik SDA/SCL ke 5 V; ukur level pull-up dan gunakan level shifter I²C dua arah bila perlu agar GPIO ESP32 tidak menerima 5 V.
 
@@ -71,12 +75,15 @@ flowchart LR
     T25["GPIO25 — TRIG"]
     T26["GPIO26 — ECHO input"]
     T27["GPIO27 — float input (sementara nonaktif)"]
+    T33["GPIO33 — tombol reset"]
     TG["GND"]
     TV["VIN / 5V atau 3V3 sesuai board dan sensor"]
     T2["GPIO2 — LED onboard"]
   end
 
   T25 --> TRIG["AJ-SR04M TRIG/RX"]
+  T33 --> TRESET["Tombol RESET NO"]
+  TRESET --> TG
   ECHO["AJ-SR04M ECHO/TX"] --> DIV["Pembagi tegangan / level shifter jika ECHO > 3.3 V"]
   DIV --> T26
   TV --> VCC["AJ-SR04M VCC"]
@@ -90,6 +97,7 @@ flowchart LR
 |---|---|
 | GPIO25 | AJ-SR04M TRIG/RX |
 | GPIO26 | AJ-SR04M ECHO/TX; pasang level shifter/pembagi jika keluarannya 5 V |
+| GPIO33 | Tombol RESET NO antara GPIO dan GND; aktif LOW dengan pull-up internal |
 | VIN/5V atau 3V3 | VCC sensor sesuai varian dan catu yang tersedia; cek label/datasheet modul |
 | GND | GND sensor |
 | GPIO27 | Float input belum dipakai; pin dibiarkan tidak terhubung |
@@ -116,5 +124,6 @@ Kedua board diberi daya masing-masing melalui USB atau catu 5 V yang sesuai. **G
 1. Cocokkan nomor GPIO dengan label pin board dan firmware; GPIO25/26 pada kedua board tidak terhubung satu sama lain.
 2. Pastikan tidak ada tegangan 5 V di GPIO ESP32, terutama jalur ECHO ultrasonic.
 3. Float switch belum digunakan; jangan pasang kabel di GPIO27 sampai sensor tersedia dan diuji.
-4. Uji logika SSR tanpa menyambungkan pompa; verifikasi level OFF saat boot dan saat tombol OFF ditekan.
-5. Lakukan pemeriksaan jalur daya pompa dan SSR berdasarkan nameplate/datasheet oleh teknisi kompeten.
+4. Uji tombol reset Tank dan pastikan data sensor kembali terkirim setelah boot.
+5. Uji tombol reset Pump tanpa beban pompa dan pastikan SSR OFF sebelum board reboot.
+6. Lakukan pemeriksaan jalur daya pompa dan SSR berdasarkan nameplate/datasheet oleh teknisi kompeten.

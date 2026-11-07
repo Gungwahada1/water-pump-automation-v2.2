@@ -13,7 +13,9 @@ static constexpr char TANK_POST_PATH[] = "/api/v1/tank";
 static constexpr uint8_t PIN_ULTRASONIC_TRIG = 25;
 static constexpr uint8_t PIN_ULTRASONIC_ECHO = 26;
 static constexpr uint8_t PIN_FLOAT_SWITCH = 27;
+static constexpr uint8_t PIN_BUTTON_RESET = 33; // NO to GND; software restart
 static constexpr uint8_t PIN_STATUS_LED = 2;
+static constexpr uint32_t RESET_BUTTON_DEBOUNCE_MS = 20UL;
 
 // Temporarily disable the float switch until the physical switch is installed.
 static constexpr bool ENABLE_FLOAT_SWITCH = false;

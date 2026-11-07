@@ -25,4 +25,5 @@ class InputManager {
  private:
   DebouncedButton onButton_;
   DebouncedButton offButton_;
+  DebouncedButton resetButton_;
 };

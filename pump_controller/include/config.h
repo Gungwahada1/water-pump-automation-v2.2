@@ -13,6 +13,7 @@ static constexpr uint8_t PIN_SSR = 25;
 static constexpr uint8_t PIN_BUTTON_ON = 26;
 static constexpr uint8_t PIN_BUTTON_OFF = 27;
 static constexpr uint8_t PIN_MODE_SELECT = 14; // LOW = MANUAL, HIGH/open = AUTO
+static constexpr uint8_t PIN_BUTTON_RESET = 33; // NO to GND; software restart
 static constexpr uint8_t PIN_STATUS_LED = 2;
 static constexpr uint8_t PIN_LCD_SDA = 21;
 static constexpr uint8_t PIN_LCD_SCL = 22;

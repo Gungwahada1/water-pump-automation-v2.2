@@ -26,10 +26,13 @@ tank_controller/
 | GPIO25 | AJ-SR04M TRIG |
 | GPIO26 | AJ-SR04M ECHO melalui pembagi tegangan/level shifter jika ECHO 5 V |
 | GPIO27 | Satu kabel float switch; kabel lainnya ke GND |
+| GPIO33 | Tombol reset NO antara GPIO dan GND; aktif LOW dengan pull-up internal |
 | 3V3 / GND | Daya logika sensor sesuai spesifikasi modul |
 | GND | Ground bersama pada sisi tegangan rendah |
 
 ESP32 GPIO tidak tahan 5 V. Verifikasi tegangan ECHO AJ-SR04M; jika keluarannya 5 V, gunakan pembagi tegangan atau level shifter sebelum GPIO26. Catu AJ-SR04M sesuai spesifikasi modul, jangan menyimpulkan dari nama model saja. AJ-SR04M memiliki beberapa mode; firmware ini mengasumsikan mode trigger/echo yang kompatibel HC-SR04. Pada sejumlah varian, mode diatur resistor R19. Pastikan board sensor benar-benar berada pada mode tersebut. Datasheet AJ-SR04M mencantumkan jarak minimum sekitar 20 cm, jadi penempatan sensor dan jarak permukaan saat tangki penuh perlu mempertimbangkan zona buta tersebut.
+
+Tombol reset Tank dipantau pada task terpisah dengan debounce 20 ms agar tetap responsif saat koneksi HTTP sedang menunggu. Tekan tombol untuk me-reboot Tank Controller. Saat Tank reboot, data sensor terhenti sementara; Pump AUTO akan mematikan pompa ketika data melewati timeout. Dalam MANUAL fisik, perilaku V2.3 mengizinkan pompa berjalan tanpa data Tank segar, jadi gunakan tombol OFF Pump jika pompa juga harus dihentikan.
 
 Float switch belum dipakai. GPIO27 tidak dibaca dan payload `float_full` selalu false. Setelah switch dibeli dan wiring diuji, ubah `ENABLE_FLOAT_SWITCH` menjadi `true` di konfigurasi Tank serta `ENABLE_FLOAT_SWITCH_CUTOFF` menjadi `true` di konfigurasi Pump. Default asumsi kontaknya tertutup saat pelampung bawah dan terbuka saat penuh. Ukur kontinuitas sebelum mengaktifkan fitur; sesuaikan `FLOAT_FULL_LEVEL` bila logikanya terbalik.
 

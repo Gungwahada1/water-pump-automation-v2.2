@@ -3,6 +3,8 @@
 #include "config.h"
 #include "tank_client.h"
 #include "tank_sensors.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 namespace {
 TankSensors tankSensors;
@@ -13,10 +15,44 @@ uint32_t lastSensorReadAt = 0;
 uint32_t lastPostAt = 0;
 uint32_t sampleSequence = 0;
 bool newReadingPending = false;
+volatile bool resetTaskRunning = false;
+bool resetStableHigh = true;
+bool resetLastRawHigh = true;
+uint32_t resetChangedAt = 0;
+
+void restartTankController() {
+  Serial.println("[RESET] external reset button pressed; restarting Tank Controller");
+  digitalWrite(PIN_STATUS_LED, LOW);
+  delay(20);
+  ESP.restart();
+}
+
+bool resetButtonWasPressed() {
+  const bool rawHigh = digitalRead(PIN_BUTTON_RESET) == HIGH;
+  if (rawHigh != resetLastRawHigh) {
+    resetLastRawHigh = rawHigh;
+    resetChangedAt = millis();
+  }
+  if (rawHigh != resetStableHigh && millis() - resetChangedAt >= RESET_BUTTON_DEBOUNCE_MS) {
+    resetStableHigh = rawHigh;
+    return !resetStableHigh;
+  }
+  return false;
+}
+
+void resetButtonTask(void*) {
+  for (;;) {
+    if (resetButtonWasPressed()) restartTankController();
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
 }
 
 void setup() {
   Serial.begin(115200);
+  pinMode(PIN_BUTTON_RESET, INPUT_PULLUP);
+  resetStableHigh = resetLastRawHigh = digitalRead(PIN_BUTTON_RESET) == HIGH;
+  resetChangedAt = millis();
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_STATUS_LED, LOW);
 
@@ -29,11 +65,17 @@ void setup() {
   tankConfig.sampleIntervalMs = SENSOR_READ_INTERVAL_MS;
   tankConfig.filterCount = LEVEL_SAMPLE_COUNT;
   tankClient.begin();
+  resetTaskRunning = true;
+  if (xTaskCreatePinnedToCore(resetButtonTask, "tank_reset_button", 3072, nullptr, 2, nullptr, 1) != pdPASS) {
+    resetTaskRunning = false;
+    Serial.println("[RESET][WARN] reset task unavailable; using main-loop polling");
+  }
   Serial.println("Tank Controller starting as Wi-Fi client");
 }
 
 void loop() {
   const uint32_t now = millis();
+  if (!resetTaskRunning && resetButtonWasPressed()) restartTankController();
   tankClient.updateWiFi();
 
   if (now - lastSensorReadAt >= tankConfig.sampleIntervalMs) {

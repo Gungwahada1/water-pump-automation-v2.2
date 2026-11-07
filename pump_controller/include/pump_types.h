@@ -26,6 +26,7 @@ struct PhysicalInputs {
   PumpMode mode = PumpMode::AUTO_MODE;
   bool pumpOnPressed = false;
   bool pumpOffPressed = false;
+  bool resetPressed = false;
   bool dashboardOnRequested = false;
   bool dashboardOffRequested = false;
 };
