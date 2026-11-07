@@ -89,10 +89,14 @@ void StatusDisplay::render(const PumpStatus& status) {
 
   if (status.pumpOn) {
     const unsigned runSeconds = static_cast<unsigned>(status.pumpRunMs / 1000UL);
-    snprintf(line[3], sizeof(line[3]), "RUN:%02u:%02u / 30:00",
-             (runSeconds / 60U) % 100U, runSeconds % 60U);
+    const unsigned maxMinutes = static_cast<unsigned>(status.maxPumpRuntimeMs / 60000UL);
+    const unsigned maxSeconds = static_cast<unsigned>((status.maxPumpRuntimeMs / 1000UL) % 60UL);
+    snprintf(line[3], sizeof(line[3]), "RUN:%02u:%02u / %02u:%02u",
+             (runSeconds / 60U) % 100U, runSeconds % 60U,
+             maxMinutes, maxSeconds);
   } else if (status.runtimeLockout) {
-    snprintf(line[3], sizeof(line[3]), "STOP: 30M LOCKOUT");
+    snprintf(line[3], sizeof(line[3]), "STOP: %02luM LOCKOUT",
+             static_cast<unsigned long>(status.maxPumpRuntimeMs / 60000UL));
   } else {
     switch (status.stopReason) {
       case StopReason::NO_DATA: snprintf(line[3], sizeof(line[3]), "STOP: WAIT TANK"); break;
@@ -101,11 +105,15 @@ void StatusDisplay::render(const PumpStatus& status) {
       case StopReason::FLOAT_FULL: snprintf(line[3], sizeof(line[3]), "STOP: FLOAT FULL"); break;
       case StopReason::ULTRASONIC_FULL: snprintf(line[3], sizeof(line[3]), "STOP: ULTRASONIC"); break;
       case StopReason::MANUAL_STOP: snprintf(line[3], sizeof(line[3]), "MANUAL: OFF"); break;
-      case StopReason::RUNTIME_LIMIT: snprintf(line[3], sizeof(line[3]), "STOP: 30M LOCKOUT"); break;
+      case StopReason::RUNTIME_LIMIT:
+        snprintf(line[3], sizeof(line[3]), "STOP: %02luM LOCKOUT",
+                 static_cast<unsigned long>(status.maxPumpRuntimeMs / 60000UL));
+        break;
       case StopReason::NONE:
       default:
         if (status.mode == PumpMode::AUTO_MODE)
-          snprintf(line[3], sizeof(line[3]), "AUTO: WAIT <=20%%");
+          snprintf(line[3], sizeof(line[3]), "AUTO: WAIT <=%.1f%%",
+                   status.autoStartLevelPercent);
         else
           snprintf(line[3], sizeof(line[3]), "MANUAL: PRESS ON");
         break;

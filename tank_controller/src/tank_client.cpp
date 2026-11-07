@@ -38,7 +38,7 @@ int TankClient::postReading(const TankReading& reading, TankRuntimeConfig& confi
   payload["distance_cm"] = reading.ultrasonicValid ? reading.distanceCm : -1.0f;
   payload["boot_id"] = bootId_;
   payload["seq"] = reading.sequence;
-  payload["firmware"] = "2.3.0";
+  payload["firmware"] = "2.3.1";
   String body;
   serializeJson(payload, body);
 

@@ -161,3 +161,5 @@ Endpoint dan rentang validasi rinci tersedia di [`../docs/api-v1.md`](../docs/ap
 5. Ubah konfigurasi dengan nilai valid, cek nilai kembali melalui `GET /api/v1/config`, lalu pastikan Tank menerapkan kalibrasi/interval/filter setelah pembacaan selanjutnya. Kirim nilai di luar rentang dan pastikan ditolak. Restart dan pastikan konfigurasi RAM kembali ke default.
 6. Periksa Device dan Logs, lalu uji restart dengan output SSR tanpa beban dan ukur bahwa OFF sebelum boot berikutnya. Jangan menguji restart saat beban pompa terpasang.
 7. Tutup browser selama AUTO berjalan dan pastikan kontrol otomatis tetap aktif. Uji koneksi ulang AP dan komunikasi Tank. Pengujian operasi 72 jam/7 hari belum dilakukan dan perlu dijalankan pada hardware sebelum operasi permanen.
+
+LCD line 4 now reads the active runtime limit and AUTO threshold from the same live settings snapshot as the controller. Example while running: `RUN:02:15 / 05:00`; lockout also shows the configured minute value.

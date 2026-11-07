@@ -39,6 +39,8 @@ struct PumpStatus {
   bool sampleFresh = false;
   uint32_t sampleAgeMs = 0;
   uint32_t pumpRunMs = 0;
+  uint32_t maxPumpRuntimeMs = 1800000UL;
+  float autoStartLevelPercent = 20.0f;
 };
 
 enum class DashboardCommandKind : uint8_t { ON, OFF, RESTART };

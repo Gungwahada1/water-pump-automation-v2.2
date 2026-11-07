@@ -222,7 +222,7 @@ void HttpApi::handleControl() {
 void HttpApi::handleDevice() {
   PumpStatus snapshot; xQueuePeek(statusSnapshots_, &snapshot, 0);
   JsonDocument response;
-  response["device"] = "Pump Controller"; response["firmware"] = "2.3.0";
+  response["device"] = "Pump Controller"; response["firmware"] = "2.3.1";
   response["uptime_ms"] = millis(); response["free_heap"] = ESP.getFreeHeap();
   response["min_free_heap"] = ESP.getMinFreeHeap();
   response["ip"] = WiFi.softAPIP().toString(); response["ap_clients"] = WiFi.softAPgetStationNum();

@@ -55,6 +55,8 @@ PumpStatus PumpController::statusSnapshot() const {
   snapshot.sampleFresh = isSampleFresh();
   snapshot.sampleAgeMs = sampleAgeMs();
   snapshot.pumpRunMs = pumpRunMs();
+  snapshot.maxPumpRuntimeMs = settings_.maxPumpRuntimeMs;
+  snapshot.autoStartLevelPercent = settings_.autoStartPercent;
   return snapshot;
 }
 
