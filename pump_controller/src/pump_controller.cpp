@@ -28,7 +28,7 @@ const char* PumpController::requestDashboardOnReason() const {
   if (!tank_.received) return "tank_data_not_received";
   if (!isSampleFresh()) return "tank_data_stale";
   if (!tank_.valid) return "ultrasonic_sensor_invalid";
-  if (tank_.levelPercent >= ULTRASONIC_FULL_STOP_PERCENT) return "tank_full_ultrasonic";
+  if (tank_.levelPercent >= settings_.autoStopPercent) return "tank_full_ultrasonic";
   if (ENABLE_FLOAT_SWITCH_CUTOFF && tank_.floatFull) return "tank_full_float";
   return nullptr;
 }
@@ -140,16 +140,14 @@ void PumpController::update(const PhysicalInputs& inputs) {
 
   // Float-full indication is the highest-priority software stop in both modes.
   const bool floatSaysFull = ENABLE_FLOAT_SWITCH_CUTOFF && tank_.received && tank_.floatFull;
-  const float ultrasonicStopPercent = mode_ == PumpMode::AUTO_MODE
-      ? settings_.autoStopPercent : ULTRASONIC_FULL_STOP_PERCENT;
   const bool ultrasonicSaysFull = tank_.received && tank_.valid &&
-      tank_.levelPercent >= ultrasonicStopPercent;
+      tank_.levelPercent >= settings_.autoStopPercent;
   if (floatSaysFull || ultrasonicSaysFull) {
     const StopReason fullReason = floatSaysFull
         ? StopReason::FLOAT_FULL : StopReason::ULTRASONIC_FULL;
     if (pumpOn_ || stopReason_ != fullReason) {
-      Serial.printf("[SAFETY] full cutoff by %s; stopping pump\n",
-                    floatSaysFull ? "float switch" : "ultrasonic threshold");
+      Serial.printf("[SAFETY] stop threshold reached by %s; stopping pump\n",
+                    floatSaysFull ? "float switch" : "ultrasonic");
     }
     manualRequest_ = false;
     dashboardManualRequest_ = false;

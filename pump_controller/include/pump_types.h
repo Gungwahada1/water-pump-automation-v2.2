@@ -39,7 +39,7 @@ struct PumpStatus {
   bool sampleFresh = false;
   uint32_t sampleAgeMs = 0;
   uint32_t pumpRunMs = 0;
-  uint32_t maxPumpRuntimeMs = 1800000UL;
+  uint32_t maxPumpRuntimeMs = 1500000UL;
   float autoStartLevelPercent = 20.0f;
   float autoStopLevelPercent = 100.0f;
 };
@@ -50,7 +50,7 @@ struct ControlResult { uint32_t requestId = 0; bool accepted = false; char reaso
 struct SystemSettings {
   float autoStartPercent = 20.0f;
   float autoStopPercent = 100.0f;
-  uint32_t maxPumpRuntimeMs = 1800000UL;
+  uint32_t maxPumpRuntimeMs = 1500000UL;
   uint32_t tankTimeoutMs = 15000UL;
   float tankHeightCm = 120.0f;
   float distanceEmptyCm = 100.0f;

@@ -24,8 +24,8 @@ A successful response contains the accepted reading and a `tank_config` object. 
 
 Request: `{"action":"ON"}` or `{"action":"OFF"}`.
 
-- `ON` is accepted only when the physical selector is MANUAL, Tank data is received/fresh/valid, ultrasonic level is below full, and runtime lockout is clear. The controller loop checks these requirements again before switching the SSR. If the request cannot be applied, the API returns HTTP 409 with a `reason`.
-- In MANUAL, the ultrasonic full cutoff remains fixed at 100%. The configurable AUTO stop threshold does not affect this manual safety cutoff.
+- `ON` is accepted only when the physical selector is MANUAL, Tank data is received/fresh/valid, ultrasonic level is below the configured stop threshold, and runtime lockout is clear. The controller loop checks these requirements again before switching the SSR. If the request cannot be applied, the API returns HTTP 409 with a `reason`.
+- In both AUTO and MANUAL, ultrasonic stops the pump at the configured `auto_stop_percent` threshold. Its default is 100%. `auto_stop_percent` must be greater than `auto_start_percent`.
 - A dashboard ON request is stopped if its Tank data becomes stale or invalid while it is running.
 - `OFF` is accepted in either mode and receives priority over a queued dashboard ON. Physical buttons remain independent of HTTP processing.
 
@@ -39,7 +39,7 @@ GET returns current settings and `saved_to_nvs:false`. POST accepts any subset o
 |---|---|
 | `auto_start_percent` | 1–80 |
 | `auto_stop_percent` | Greater than `auto_start_percent`, up to 100 |
-| `max_runtime_minutes` | 1–60 |
+| `max_runtime_minutes` | 1–60 (default 25) |
 | `tank_timeout_seconds` | 5–60 |
 | `tank_height_cm` | 30–500 |
 | `distance_empty_cm` | Must exceed full distance and fit sensor range |
@@ -51,7 +51,7 @@ GET returns current settings and `saved_to_nvs:false`. POST accepts any subset o
 
 The calibration is rejected unless empty distance is greater than full distance, full distance is at least the sensor minimum, and calibration distances fit within the configured sensor range. The minimum sensor distance cannot be set below 20 cm. Tank timeout must be at least the sensor interval plus 4 seconds to allow for sensor acquisition and HTTP delays. The AUTO stop threshold must be greater than the AUTO start threshold. Values are volatile RAM settings and return to firmware defaults after reboot. They are not written to NVS in V2.3. Network credentials remain compile-time settings; the API does not change the AP while clients are connected.
 
-Configuration meanings: `auto_start_percent` starts AUTO filling at or below the selected level; `auto_stop_percent` stops AUTO filling at or above the selected level. `max_runtime_minutes` caps one continuous pump run in both modes. `tank_timeout_seconds` defines when Tank communication is stale. `tank_height_cm` is a geometry reference and calibration sanity check; the current level percentage is calculated from `distance_empty_cm` (0%) and `distance_full_cm` (100%). `sensor_min_distance_cm` and `sensor_max_distance_cm` bound accepted echo readings. `sensor_interval_ms` controls Tank sampling cadence. `filter_count` is the median filter window; larger windows reduce spikes but slow response. Float cutoff is currently disabled in V2.3.
+Configuration meanings: `auto_start_percent` starts AUTO filling at or below the selected level; `auto_stop_percent` stops the pump in both AUTO and MANUAL at or above the selected level. `max_runtime_minutes` caps one continuous pump run in both modes (default 25 minutes). `tank_timeout_seconds` defines when Tank communication is stale. `tank_height_cm` is a geometry reference and calibration sanity check; the current level percentage is calculated from `distance_empty_cm` (0%) and `distance_full_cm` (100%). `sensor_min_distance_cm` and `sensor_max_distance_cm` bound accepted echo readings. `sensor_interval_ms` controls Tank sampling cadence. `filter_count` is the median filter window; larger windows reduce spikes but slow response. Float cutoff is currently disabled in V2.3.
 
 ## `GET /api/v1/device`
 

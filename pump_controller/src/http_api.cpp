@@ -164,7 +164,7 @@ void HttpApi::handleStatus() {
   response["sensor_age_ms"] = snapshot.sampleAgeMs;
   response["float_full"] = sample.floatFull;
   response["ultrasonic_full"] = sample.received && sample.valid &&
-      sample.levelPercent >= ULTRASONIC_FULL_STOP_PERCENT;
+      sample.levelPercent >= ULTRASONIC_LEVEL_FULL_PERCENT;
   response["runtime_lockout"] = snapshot.runtimeLockout;
   response["stop_reason"] = stopReasonName(snapshot.stopReason);
   response["status_ready"] = hasSnapshot;
@@ -199,7 +199,7 @@ void HttpApi::handleControl() {
     else if (!snapshot.tank.received) reason = "tank_data_not_received";
     else if (!snapshot.sampleFresh) reason = "tank_data_stale";
     else if (!snapshot.tank.valid) reason = "ultrasonic_sensor_invalid";
-    else if (snapshot.tank.levelPercent >= ULTRASONIC_FULL_STOP_PERCENT) reason = "tank_full_ultrasonic";
+    else if (snapshot.tank.levelPercent >= snapshot.autoStopLevelPercent) reason = "tank_full_ultrasonic";
     else if (ENABLE_FLOAT_SWITCH_CUTOFF && snapshot.tank.floatFull) reason = "tank_full_float";
     else reason = nullptr;
     if (reason) { JsonDocument response; response["accepted"] = false; response["reason"] = reason; sendJson(409, response); return; }

@@ -74,8 +74,7 @@ void StatusDisplay::render(const PumpStatus& status) {
     snprintf(line[1], sizeof(line[1]), "LEVEL: --.-%% INVALID");
     snprintf(line[2], sizeof(line[2]), "TANK: SENSOR ERROR");
   } else {
-    const float stopPercent = status.mode == PumpMode::AUTO_MODE
-        ? status.autoStopLevelPercent : ULTRASONIC_FULL_STOP_PERCENT;
+    const float stopPercent = status.autoStopLevelPercent;
     const char* levelTag = tank.levelPercent >= stopPercent
         ? "STOP" : tank.levelPercent <= status.autoStartLevelPercent ? "LOW" : "";
     snprintf(line[1], sizeof(line[1]), "LEVEL:%5.1f%% %s",

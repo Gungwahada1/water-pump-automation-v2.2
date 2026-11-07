@@ -27,10 +27,11 @@ static constexpr uint8_t SSR_OFF_LEVEL = (SSR_ACTIVE_LEVEL == HIGH) ? LOW : HIGH
 // Keep disabled until a physical float switch is installed and verified.
 static constexpr bool ENABLE_FLOAT_SWITCH_CUTOFF = false;
 static constexpr float AUTO_START_LEVEL_PERCENT = 20.0f;
-static constexpr float ULTRASONIC_FULL_STOP_PERCENT = 100.0f;
+static constexpr float AUTO_STOP_LEVEL_DEFAULT_PERCENT = 100.0f;
+static constexpr float ULTRASONIC_LEVEL_FULL_PERCENT = 100.0f;
 static constexpr float ULTRASONIC_MIN_DISTANCE_CM = 20.0f;
 static constexpr uint32_t SENSOR_TIMEOUT_MS = 15000UL;
-static constexpr uint32_t MAX_PUMP_RUNTIME_MS = 30UL * 60UL * 1000UL;
+static constexpr uint32_t MAX_PUMP_RUNTIME_MS = 25UL * 60UL * 1000UL;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS = 15UL;
 static constexpr uint32_t HTTP_CLIENT_TIMEOUT_MS = 1500UL;
 static constexpr uint32_t DEBUG_STATUS_INTERVAL_MS = 3000UL;

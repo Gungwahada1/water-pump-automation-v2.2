@@ -29,7 +29,7 @@ Kode dipisah menurut tanggung jawab: `InputManager` membaca tombol dan selector,
 1. **SSR aktif-HIGH atau aktif-LOW.** `SSR_ACTIVE_LEVEL` default `HIGH`; cocokkan dengan modul SSR yang dipakai. Uji tegangan pin/output dan keadaan SSR tanpa pompa. Firmware mengatur output OFF sedini mungkin, tetapi keselamatan saat reset juga harus dibantu rangkaian hardware (pull-down/pull-up sesuai modul).
 2. **Float switch sementara nonaktif.** `ENABLE_FLOAT_SWITCH_CUTOFF=false` membuat Pump Controller mengabaikan `float_full`. Aktifkan hanya setelah float switch dipasang dan logika kontaknya diverifikasi di konfigurasi kedua firmware.
 3. **Skala ultrasonic.** Kontrak API memakai `level_percent` pada rentang 0–100. Konversi jarak ke persen dan validitas echo dilakukan Tank Controller. Nilai persentase harus diuji terhadap dimensi tangki.
-4. **Prioritas MANUAL.** Ultrasonic valid pada 100% mematikan pompa dalam MANUAL. Pada AUTO, batas berhenti mengikuti `auto_stop_percent` yang dapat diatur di web. Tombol OFF dan timeout durasi juga menghentikan pompa. AUTO turut berhenti jika data stale atau ultrasonic invalid.
+4. **Prioritas MANUAL.** Ultrasonic valid yang mencapai `auto_stop_percent` mematikan pompa dalam AUTO maupun MANUAL. Nilai defaultnya 100%. Tombol OFF dan timeout durasi juga menghentikan pompa. AUTO turut berhenti jika data stale atau ultrasonic invalid.
 5. **Jaringan.** SoftAP tanpa router/internet; kredensial default berada di `include/config.h`. Perangkat Tank Controller harus bergabung ke AP ini dan POST heartbeat/data secara berkala.
 6. **Interlock.** Float yang dikirim melalui Wi-Fi bukan interlock independen. Hilangnya daya, hang, gangguan radio, atau server gagal dapat membuat pesan tidak sampai. Untuk proteksi overflow nyata gunakan pemutus level independen/hardwired atau rangkaian keselamatan terpisah yang memutus koil/daya pompa. SSR dan instalasi listrik harus dipilih/dipasang oleh personel kompeten.
 
@@ -67,10 +67,10 @@ LCD diperbarui setiap 500 ms di task terpisah dan hanya menulis baris yang berub
 
 - AUTO: data valid dan segar diperlukan. Pompa mulai ketika `level_percent <= auto_start_percent`; setelah mulai, pompa tetap ON meski level melewati ambang bawah. Pompa berhenti saat level mencapai `auto_stop_percent` yang dapat diatur melalui Configuration. Nilai stop harus lebih besar dari nilai start dan tidak lebih dari 100%. Float cutoff dinonaktifkan.
 - AUTO mematikan pompa jika data belum pernah diterima, data lebih lama dari timeout, atau ultrasonic invalid.
-- MANUAL: tombol ON menyalakan dan tombol OFF mematikan (latch) selama selector pada MANUAL. Tombol OFF bekerja di kedua mode. Ultrasonic valid 100% dan proteksi durasi maksimum tetap mematikan pompa; pengaturan AUTO stop tidak mengubah cutoff MANUAL ini. Komunikasi tidak diperlukan untuk memulai MANUAL jika belum ada status penuh yang diterima.
+- MANUAL: tombol ON menyalakan dan tombol OFF mematikan (latch) selama selector pada MANUAL. Tombol OFF bekerja di kedua mode. Ultrasonic valid yang mencapai ambang `auto_stop_percent` dan proteksi durasi maksimum tetap mematikan pompa. Komunikasi tidak diperlukan untuk memulai MANUAL jika belum ada status cutoff yang diterima.
 - Input fisik dibaca oleh loop kontrol utama dengan debounce 15 ms dan jeda loop 2 ms. HTTP berjalan pada task FreeRTOS core 0; penanganan request HTTP tidak menahan loop tombol. Loop menerima data sensor secara non-blocking. Jika ON dan OFF terbaca bersamaan, OFF menang. Untuk pemutusan darurat yang harus tetap bekerja saat ESP32 hang atau kehilangan daya, gunakan pemutus hardware terpisah.
 - Mengubah mode ke AUTO memulai evaluasi otomatis dari kondisi sensor terbaru.
-- Proteksi durasi: setelah `MAX_PUMP_RUNTIME_MS`, pompa mati dan terkunci sampai board di-reset. Tombol OFF saja tidak menghapus lockout.
+- Proteksi durasi: default 25 menit; nilai dapat diubah di Configuration antara 1–60 menit. Setelah batas tercapai, pompa mati dan terkunci sampai board di-reset. Tombol OFF saja tidak menghapus lockout.
 - Pada boot, output SSR diset OFF sebelum Wi-Fi/server dimulai.
 
 ## HTTP API Tahap 1
@@ -123,7 +123,7 @@ Jika monitor kosong: pastikan board/COM port yang benar dipilih, baud rate **115
 4. Set selector AUTO, kirim `level_percent` di atas ambang lalu pastikan pompa tetap OFF; kirim nilai di bawah/sama ambang dan pastikan output menjadi ON.
 5. Kirim level di atas ambang dengan `float_full:false`: output harus tetap ON. Karena float cutoff nonaktif, `float_full:true` harus diabaikan. Kirim `level_percent:100` dengan `sensor_valid:true`: output harus OFF.
 6. Uji `sensor_valid:false`, payload invalid, dan hentikan POST melewati timeout: AUTO harus OFF.
-7. Set selector MANUAL. Tombol ON harus ON, tombol OFF harus OFF. `float_full:true` harus diabaikan sementara; `level_percent:100` dengan `sensor_valid:true` harus mematikan pompa di MANUAL.
+7. Set selector MANUAL. Tombol ON harus ON, tombol OFF harus OFF. `float_full:true` harus diabaikan sementara; level valid yang mencapai `auto_stop_percent` harus mematikan pompa di MANUAL.
 8. Saat POST data dikirim berulang, tekan tombol OFF. Output harus merespons tanpa menunggu request selesai; tombol OFF menang bila ON dan OFF ditekan bersama.
 9. Uji batas runtime dengan konfigurasi pendek hanya pada beban uji tegangan rendah atau LED; pastikan pompa terkunci OFF setelah batas tercapai.
 10. Baru setelah semua uji logika lulus, teknisi yang kompeten dapat memverifikasi SSR dan instalasi beban secara terpisah.
@@ -141,7 +141,7 @@ curl -i -X POST http://192.168.4.1/api/v1/tank \
 
 Buka `http://192.168.4.1` setelah tersambung ke SoftAP. Dashboard dipisahkan di `src/web_dashboard.cpp`; HTTP API tetap di `src/http_api.cpp`; ring log RAM di `src/system_log.cpp`. UI memakai polling 1,5 detik dan tidak membutuhkan CDN/internet.
 
-Dashboard ON hanya diterima pada MANUAL fisik dengan data Tank segar/valid, level belum 100%, dan tanpa lockout. Persyaratan dicek di API dan dicek ulang oleh state machine; jika data menjadi stale/invalid saat permintaan dashboard memegang pompa, pompa dihentikan. OFF tidak bergantung pada mode dan diprioritaskan di antrean perintah dashboard. Tombol OFF fisik tetap diproses langsung oleh loop kontrol.
+Dashboard ON hanya diterima pada MANUAL fisik dengan data Tank segar/valid, level di bawah ambang `auto_stop_percent`, dan tanpa lockout. Persyaratan dicek di API dan dicek ulang oleh state machine; jika data menjadi stale/invalid saat permintaan dashboard memegang pompa, pompa dihentikan. OFF tidak bergantung pada mode dan diprioritaskan di antrean perintah dashboard. Tombol OFF fisik tetap diproses langsung oleh loop kontrol.
 
 `GET/POST /api/v1/config` mengubah konfigurasi Pump dan kalibrasi sensor Tank sementara di RAM, dengan rentang tervalidasi. Tank menerima konfigurasi kalibrasi, jarak sensor, interval pembacaan, dan filter dalam respons POST pembacaan sensor berikutnya; tidak dibutuhkan koneksi balik ke alamat DHCP Tank. Nilai belum disimpan ke Preferences/NVS dan hilang setelah reboot.
 
@@ -149,7 +149,7 @@ Endpoint tambahan: `POST /api/v1/control`, `GET /api/v1/device`, `GET /api/v1/lo
 
 ### Arti konfigurasi
 
-Semua perubahan di halaman Configuration berlaku sementara sampai Pump Controller reboot. `AUTO start` memicu pengisian saat level turun sampai atau di bawah ambang; `AUTO stop` mengakhiri pengisian saat level naik sampai ambang, dan harus lebih tinggi dari AUTO start. AUTO stop tidak mengubah batas MANUAL: ultrasonic tetap menghentikan pompa pada 100%. `Maks runtime` membatasi satu kali pompa menyala di kedua mode. `Tank timeout` menentukan kapan data komunikasi Tank dianggap stale; otomatisasi AUTO berhenti saat data stale.
+Semua perubahan di halaman Configuration berlaku sementara sampai Pump Controller reboot. `AUTO start` memicu pengisian saat level turun sampai atau di bawah ambang; `AUTO stop` menghentikan pompa di AUTO maupun MANUAL saat level naik sampai ambang, dan harus lebih tinggi dari AUTO start. Default `Maks runtime` adalah 25 menit dan membatasi satu kali pompa menyala di kedua mode. `Tank timeout` menentukan kapan data komunikasi Tank dianggap stale; otomatisasi AUTO berhenti saat data stale.
 
 `Tinggi tangki` adalah referensi ukuran fisik dan pemeriksaan kalibrasi; persentase saat ini dihitung dari dua jarak kalibrasi, bukan dari tinggi ini saja. `Jarak sensor saat kosong` menjadi titik 0%, sedangkan `Jarak sensor saat penuh` menjadi titik 100% yang dipilih saat kalibrasi. `Jarak minimum/maksimum sensor` membatasi echo yang diterima valid. `Interval baca sensor` mengatur jeda antar pembacaan. `Jumlah sampel filter` menentukan ukuran filter median untuk meredam lonjakan pembacaan, dengan respons lebih lambat bila jumlah sampel ditambah. Cutoff Float masih nonaktif pada V2.3; statusnya ditampilkan untuk kesiapan integrasi, tetapi tidak menghentikan pompa.
 
@@ -162,7 +162,7 @@ Endpoint dan rentang validasi rinci tersedia di [`../docs/api-v1.md`](../docs/ap
 
 1. Sambungkan satu HP/laptop ke AP bersama Tank Controller dan buka `http://192.168.4.1`; pastikan halaman tampil tanpa akses internet. AP mengizinkan maksimal dua client, sehingga Tank dan satu client dashboard dapat tersambung bersamaan.
 2. Pastikan level, jarak, status sensor, mode, pompa, dan umur data berubah dari pembacaan Tank. Putuskan Tank dan pastikan status menjadi STALE setelah timeout serta nilai level tidak ditampilkan sebagai nilai terkini.
-3. Uji dashboard ON pada AUTO (harus ditolak), pada MANUAL dengan data segar/valid (dapat diterima), dan dengan data tidak ada/stale/invalid/100% (harus ditolak). Lakukan tanpa beban pompa, gunakan indikator tegangan rendah pada sisi output SSR.
+3. Uji dashboard ON pada AUTO (harus ditolak), pada MANUAL dengan data segar/valid di bawah `auto_stop_percent` (dapat diterima), dan dengan data tidak ada/stale/invalid atau level sudah mencapai `auto_stop_percent` (harus ditolak). Lakukan tanpa beban pompa, gunakan indikator tegangan rendah pada sisi output SSR.
 4. Saat permintaan dashboard menyalakan pompa, putuskan data Tank; pastikan Pump Controller mematikan output. Uji dashboard OFF pada kedua mode. Uji juga tombol OFF fisik saat dashboard melakukan polling.
 5. Ubah konfigurasi dengan nilai valid, cek nilai kembali melalui `GET /api/v1/config`, lalu pastikan Tank menerapkan kalibrasi/interval/filter setelah pembacaan selanjutnya. Kirim nilai di luar rentang dan pastikan ditolak. Restart dan pastikan konfigurasi RAM kembali ke default.
 6. Periksa Device dan Logs, lalu uji restart dengan output SSR tanpa beban dan ukur bahwa OFF sebelum boot berikutnya. Jangan menguji restart saat beban pompa terpasang.

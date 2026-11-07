@@ -57,10 +57,10 @@ void setup() {
   Serial.println("========================================");
   Serial.printf("[BOOT] SSR output initialized OFF on GPIO%d (OFF level %s)\n",
                 PIN_SSR, SSR_OFF_LEVEL == HIGH ? "HIGH" : "LOW");
-  Serial.printf("[BOOT] default AUTO start=%.1f%%, AUTO stop=%.1f%%, MANUAL ultrasonic cutoff=%.1f%%, sensor timeout=%lu ms, max runtime=%lu ms\n",
+  Serial.printf("[BOOT] default AUTO start=%.1f%%, AUTO/MANUAL stop=%.1f%%, ultrasonic full=%.1f%%, sensor timeout=%lu ms, max runtime=%lu ms\n",
                 AUTO_START_LEVEL_PERCENT,
-                ULTRASONIC_FULL_STOP_PERCENT,
-                ULTRASONIC_FULL_STOP_PERCENT,
+                AUTO_STOP_LEVEL_DEFAULT_PERCENT,
+                ULTRASONIC_LEVEL_FULL_PERCENT,
                 static_cast<unsigned long>(SENSOR_TIMEOUT_MS),
                 static_cast<unsigned long>(MAX_PUMP_RUNTIME_MS));
   Serial.printf("[BOOT] AP SSID=%s, channel=%u\n", AP_SSID, AP_CHANNEL);
@@ -85,6 +85,7 @@ void setup() {
   runtimeSettings = xQueueCreate(1, sizeof(SystemSettings));
   SystemSettings defaultSettings;
   defaultSettings.autoStartPercent = AUTO_START_LEVEL_PERCENT;
+  defaultSettings.autoStopPercent = AUTO_STOP_LEVEL_DEFAULT_PERCENT;
   defaultSettings.maxPumpRuntimeMs = MAX_PUMP_RUNTIME_MS;
   defaultSettings.tankTimeoutMs = SENSOR_TIMEOUT_MS;
   if (runtimeSettings != nullptr) xQueueOverwrite(runtimeSettings, &defaultSettings);
