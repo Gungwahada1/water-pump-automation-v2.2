@@ -9,7 +9,7 @@ Firmware untuk dua ESP32 DevKit V1 / ESP32-WROOM-32:
 ## Perilaku konfigurasi saat ini
 
 - Pump Controller membuat AP `PumpCtrl-Setup` di `192.168.4.1`; Tank Controller mengirim pembacaan baru ke `/api/v1/tank` pada interval sensor yang dikonfigurasi (default 1 detik).
-- AUTO memulai pompa pada level valid di bawah ambang konfigurasi (default `<=20%`); cutoff penuh saat ultrasonic valid mencapai `100%`.
+- AUTO memulai pompa pada level valid di bawah ambang konfigurasi (default `<=20%`) dan berhenti pada ambang AUTO stop yang bisa diatur (default `100%`, harus lebih besar dari ambang start). MANUAL tetap punya cutoff ultrasonic tetap pada `100%`.
 - Cutoff float switch **dinonaktifkan sementara** di kedua firmware. Tank Controller mengirim `float_full:false`; Pump Controller juga mengabaikan nilai float yang diterima.
 - Di MANUAL, tombol fisik ON/OFF mempertahankan perilaku V2.2. Dashboard ON mensyaratkan selector MANUAL, data Tank segar/valid, level di bawah penuh, dan tidak ada lockout. Dashboard OFF selalu tersedia.
 - LCD menampilkan mode, status pompa, level, status/umur data Tank, dan alasan stop atau durasi berjalan.

@@ -57,8 +57,9 @@ void setup() {
   Serial.println("========================================");
   Serial.printf("[BOOT] SSR output initialized OFF on GPIO%d (OFF level %s)\n",
                 PIN_SSR, SSR_OFF_LEVEL == HIGH ? "HIGH" : "LOW");
-  Serial.printf("[BOOT] start threshold=%.1f%%, full cutoff=%.1f%%, sensor timeout=%lu ms, max runtime=%lu ms\n",
+  Serial.printf("[BOOT] default AUTO start=%.1f%%, AUTO stop=%.1f%%, MANUAL ultrasonic cutoff=%.1f%%, sensor timeout=%lu ms, max runtime=%lu ms\n",
                 AUTO_START_LEVEL_PERCENT,
+                ULTRASONIC_FULL_STOP_PERCENT,
                 ULTRASONIC_FULL_STOP_PERCENT,
                 static_cast<unsigned long>(SENSOR_TIMEOUT_MS),
                 static_cast<unsigned long>(MAX_PUMP_RUNTIME_MS));

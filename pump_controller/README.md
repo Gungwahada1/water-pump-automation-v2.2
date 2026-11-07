@@ -29,7 +29,7 @@ Kode dipisah menurut tanggung jawab: `InputManager` membaca tombol dan selector,
 1. **SSR aktif-HIGH atau aktif-LOW.** `SSR_ACTIVE_LEVEL` default `HIGH`; cocokkan dengan modul SSR yang dipakai. Uji tegangan pin/output dan keadaan SSR tanpa pompa. Firmware mengatur output OFF sedini mungkin, tetapi keselamatan saat reset juga harus dibantu rangkaian hardware (pull-down/pull-up sesuai modul).
 2. **Float switch sementara nonaktif.** `ENABLE_FLOAT_SWITCH_CUTOFF=false` membuat Pump Controller mengabaikan `float_full`. Aktifkan hanya setelah float switch dipasang dan logika kontaknya diverifikasi di konfigurasi kedua firmware.
 3. **Skala ultrasonic.** Kontrak API memakai `level_percent` pada rentang 0–100. Konversi jarak ke persen dan validitas echo dilakukan Tank Controller. Nilai persentase harus diuji terhadap dimensi tangki.
-4. **Prioritas MANUAL.** Untuk konfigurasi sementara, ultrasonic valid pada 100% mematikan pompa dalam AUTO maupun MANUAL. Tombol OFF dan timeout durasi juga menghentikan pompa. AUTO turut berhenti jika data stale atau ultrasonic invalid.
+4. **Prioritas MANUAL.** Ultrasonic valid pada 100% mematikan pompa dalam MANUAL. Pada AUTO, batas berhenti mengikuti `auto_stop_percent` yang dapat diatur di web. Tombol OFF dan timeout durasi juga menghentikan pompa. AUTO turut berhenti jika data stale atau ultrasonic invalid.
 5. **Jaringan.** SoftAP tanpa router/internet; kredensial default berada di `include/config.h`. Perangkat Tank Controller harus bergabung ke AP ini dan POST heartbeat/data secara berkala.
 6. **Interlock.** Float yang dikirim melalui Wi-Fi bukan interlock independen. Hilangnya daya, hang, gangguan radio, atau server gagal dapat membuat pesan tidak sampai. Untuk proteksi overflow nyata gunakan pemutus level independen/hardwired atau rangkaian keselamatan terpisah yang memutus koil/daya pompa. SSR dan instalasi listrik harus dipilih/dipasang oleh personel kompeten.
 
@@ -57,17 +57,17 @@ Isi layar yang ditampilkan:
 | Baris | Informasi |
 |---|---|
 | 1 | Mode AUTO/MANUAL dan output pompa ON/OFF |
-| 2 | Persentase air; tanda LOW pada ambang start atau FULL pada 100% |
+| 2 | Persentase air; tanda LOW pada ambang start atau STOP pada ambang stop AUTO |
 | 3 | Data Tank OK/STALE/NO DATA/SENSOR ERROR dan umur data |
-| 4 | Durasi pompa berjalan atau alasan stop/menunggu/lockout; cutoff 100% tampil sebagai `STOP: ULTRASONIC` |
+| 4 | Durasi pompa berjalan atau alasan stop/menunggu/lockout |
 
 LCD diperbarui setiap 500 ms di task terpisah dan hanya menulis baris yang berubah. Gangguan atau LCD yang tidak terpasang tidak menghentikan logika pompa.
 
 ## Perilaku kontrol
 
-- AUTO: data valid dan segar diperlukan. Pompa mulai ketika `level_percent <= AUTO_START_LEVEL_PERCENT`. Setelah mulai, pompa tetap ON meski level melewati ambang bawah; untuk konfigurasi sementara, berhenti saat pembacaan ultrasonic valid mencapai `ULTRASONIC_FULL_STOP_PERCENT` (100%). Float cutoff dinonaktifkan.
+- AUTO: data valid dan segar diperlukan. Pompa mulai ketika `level_percent <= auto_start_percent`; setelah mulai, pompa tetap ON meski level melewati ambang bawah. Pompa berhenti saat level mencapai `auto_stop_percent` yang dapat diatur melalui Configuration. Nilai stop harus lebih besar dari nilai start dan tidak lebih dari 100%. Float cutoff dinonaktifkan.
 - AUTO mematikan pompa jika data belum pernah diterima, data lebih lama dari timeout, atau ultrasonic invalid.
-- MANUAL: tombol ON menyalakan dan tombol OFF mematikan (latch) selama selector pada MANUAL. Tombol OFF bekerja di kedua mode. Ultrasonic valid 100% dan proteksi durasi maksimum tetap mematikan pompa. Komunikasi tidak diperlukan untuk memulai MANUAL jika belum ada status penuh yang diterima.
+- MANUAL: tombol ON menyalakan dan tombol OFF mematikan (latch) selama selector pada MANUAL. Tombol OFF bekerja di kedua mode. Ultrasonic valid 100% dan proteksi durasi maksimum tetap mematikan pompa; pengaturan AUTO stop tidak mengubah cutoff MANUAL ini. Komunikasi tidak diperlukan untuk memulai MANUAL jika belum ada status penuh yang diterima.
 - Input fisik dibaca oleh loop kontrol utama dengan debounce 15 ms dan jeda loop 2 ms. HTTP berjalan pada task FreeRTOS core 0; penanganan request HTTP tidak menahan loop tombol. Loop menerima data sensor secara non-blocking. Jika ON dan OFF terbaca bersamaan, OFF menang. Untuk pemutusan darurat yang harus tetap bekerja saat ESP32 hang atau kehilangan daya, gunakan pemutus hardware terpisah.
 - Mengubah mode ke AUTO memulai evaluasi otomatis dari kondisi sensor terbaru.
 - Proteksi durasi: setelah `MAX_PUMP_RUNTIME_MS`, pompa mati dan terkunci sampai board di-reset. Tombol OFF saja tidak menghapus lockout.
@@ -146,6 +146,12 @@ Dashboard ON hanya diterima pada MANUAL fisik dengan data Tank segar/valid, leve
 `GET/POST /api/v1/config` mengubah konfigurasi Pump dan kalibrasi sensor Tank sementara di RAM, dengan rentang tervalidasi. Tank menerima konfigurasi kalibrasi, jarak sensor, interval pembacaan, dan filter dalam respons POST pembacaan sensor berikutnya; tidak dibutuhkan koneksi balik ke alamat DHCP Tank. Nilai belum disimpan ke Preferences/NVS dan hilang setelah reboot.
 
 Endpoint tambahan: `POST /api/v1/control`, `GET /api/v1/device`, `GET /api/v1/logs`, dan `POST /api/v1/device/restart`. Log berisi maksimum 24 event berbasis uptime. Restart diarahkan ke loop kontrol untuk mengatur SSR OFF sebelum reboot.
+
+### Arti konfigurasi
+
+Semua perubahan di halaman Configuration berlaku sementara sampai Pump Controller reboot. `AUTO start` memicu pengisian saat level turun sampai atau di bawah ambang; `AUTO stop` mengakhiri pengisian saat level naik sampai ambang, dan harus lebih tinggi dari AUTO start. AUTO stop tidak mengubah batas MANUAL: ultrasonic tetap menghentikan pompa pada 100%. `Maks runtime` membatasi satu kali pompa menyala di kedua mode. `Tank timeout` menentukan kapan data komunikasi Tank dianggap stale; otomatisasi AUTO berhenti saat data stale.
+
+`Tinggi tangki` adalah referensi ukuran fisik dan pemeriksaan kalibrasi; persentase saat ini dihitung dari dua jarak kalibrasi, bukan dari tinggi ini saja. `Jarak sensor saat kosong` menjadi titik 0%, sedangkan `Jarak sensor saat penuh` menjadi titik 100% yang dipilih saat kalibrasi. `Jarak minimum/maksimum sensor` membatasi echo yang diterima valid. `Interval baca sensor` mengatur jeda antar pembacaan. `Jumlah sampel filter` menentukan ukuran filter median untuk meredam lonjakan pembacaan, dengan respons lebih lambat bila jumlah sampel ditambah. Cutoff Float masih nonaktif pada V2.3; statusnya ditampilkan untuk kesiapan integrasi, tetapi tidak menghentikan pompa.
 
 Float switch sengaja tetap nonaktif melalui `ENABLE_FLOAT_SWITCH_CUTOFF=false`. Payload dan logika cutoff tetap dipertahankan untuk aktivasi kemudian; verifikasi kontak dan wiring sebelum diaktifkan.
 

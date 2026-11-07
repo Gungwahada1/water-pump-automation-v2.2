@@ -41,6 +41,7 @@ struct PumpStatus {
   uint32_t pumpRunMs = 0;
   uint32_t maxPumpRuntimeMs = 1800000UL;
   float autoStartLevelPercent = 20.0f;
+  float autoStopLevelPercent = 100.0f;
 };
 
 enum class DashboardCommandKind : uint8_t { ON, OFF, RESTART };
@@ -48,6 +49,7 @@ struct DashboardCommand { DashboardCommandKind kind = DashboardCommandKind::OFF;
 struct ControlResult { uint32_t requestId = 0; bool accepted = false; char reason[48] = {}; };
 struct SystemSettings {
   float autoStartPercent = 20.0f;
+  float autoStopPercent = 100.0f;
   uint32_t maxPumpRuntimeMs = 1800000UL;
   uint32_t tankTimeoutMs = 15000UL;
   float tankHeightCm = 120.0f;
@@ -69,7 +71,7 @@ inline const char* stopReasonName(StopReason reason) {
     case StopReason::STALE_DATA: return "stale_data";
     case StopReason::INVALID_SENSOR: return "invalid_sensor";
     case StopReason::FLOAT_FULL: return "float_full";
-    case StopReason::ULTRASONIC_FULL: return "ultrasonic_100_percent";
+    case StopReason::ULTRASONIC_FULL: return "ultrasonic_stop_threshold";
     case StopReason::MANUAL_STOP: return "manual_stop";
     case StopReason::RUNTIME_LIMIT: return "runtime_limit";
     default: return "none";

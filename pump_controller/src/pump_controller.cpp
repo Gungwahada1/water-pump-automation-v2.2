@@ -57,6 +57,7 @@ PumpStatus PumpController::statusSnapshot() const {
   snapshot.pumpRunMs = pumpRunMs();
   snapshot.maxPumpRuntimeMs = settings_.maxPumpRuntimeMs;
   snapshot.autoStartLevelPercent = settings_.autoStartPercent;
+  snapshot.autoStopLevelPercent = settings_.autoStopPercent;
   return snapshot;
 }
 
@@ -139,18 +140,21 @@ void PumpController::update(const PhysicalInputs& inputs) {
 
   // Float-full indication is the highest-priority software stop in both modes.
   const bool floatSaysFull = ENABLE_FLOAT_SWITCH_CUTOFF && tank_.received && tank_.floatFull;
+  const float ultrasonicStopPercent = mode_ == PumpMode::AUTO_MODE
+      ? settings_.autoStopPercent : ULTRASONIC_FULL_STOP_PERCENT;
   const bool ultrasonicSaysFull = tank_.received && tank_.valid &&
-      tank_.levelPercent >= ULTRASONIC_FULL_STOP_PERCENT;
+      tank_.levelPercent >= ultrasonicStopPercent;
   if (floatSaysFull || ultrasonicSaysFull) {
     const StopReason fullReason = floatSaysFull
         ? StopReason::FLOAT_FULL : StopReason::ULTRASONIC_FULL;
     if (pumpOn_ || stopReason_ != fullReason) {
-      Serial.printf("[SAFETY] full cutoff by %s; stopping pump in any mode\n",
-                    floatSaysFull ? "float switch" : "ultrasonic 100%");
+      Serial.printf("[SAFETY] full cutoff by %s; stopping pump\n",
+                    floatSaysFull ? "float switch" : "ultrasonic threshold");
     }
     manualRequest_ = false;
     dashboardManualRequest_ = false;
     autoCycleActive_ = false;
+    autoStopInhibit_ = true;
     setPump(false, fullReason);
     return;
   }
@@ -187,7 +191,7 @@ void PumpController::update(const PhysicalInputs& inputs) {
     return;
   }
 
-  if (tank_.levelPercent > AUTO_START_LEVEL_PERCENT) autoStopInhibit_ = false;
+  if (tank_.levelPercent > settings_.autoStartPercent) autoStopInhibit_ = false;
   if (!autoCycleActive_ && !autoStopInhibit_ &&
       tank_.levelPercent <= settings_.autoStartPercent) autoCycleActive_ = true;
 

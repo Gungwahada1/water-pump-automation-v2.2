@@ -172,6 +172,7 @@ void HttpApi::handleStatus() {
   SystemSettings activeSettings;
   xQueuePeek(settingsQueue_, &activeSettings, 0);
   response["max_runtime_ms"] = activeSettings.maxPumpRuntimeMs;
+  response["auto_stop_percent"] = activeSettings.autoStopPercent;
   response["float_enabled"] = ENABLE_FLOAT_SWITCH_CUTOFF;
   response["uptime_ms"] = millis();
   response["free_heap"] = ESP.getFreeHeap();
@@ -245,6 +246,11 @@ void HttpApi::handleConfig() {
       if (!isfinite(value) || value < 1.0f || value > 80.0f) { JsonDocument e; e["error"]="auto_start_percent_range_1_to_80"; sendJson(422,e); return; }
       settings.autoStartPercent = value;
     }
+    if (request["auto_stop_percent"].is<float>() || request["auto_stop_percent"].is<int>()) {
+      const float value = request["auto_stop_percent"].as<float>();
+      if (!isfinite(value) || value < 1.0f || value > 100.0f) { JsonDocument e;e["error"]="auto_stop_percent_range_1_to_100";sendJson(422,e);return; }
+      settings.autoStopPercent = value;
+    }
     if (request["max_runtime_minutes"].is<uint32_t>() || request["max_runtime_minutes"].is<int>()) {
       const uint32_t value = request["max_runtime_minutes"].as<uint32_t>();
       if (value < 1 || value > 60) { JsonDocument e; e["error"]="max_runtime_minutes_range_1_to_60"; sendJson(422,e); return; }
@@ -268,6 +274,9 @@ void HttpApi::handleConfig() {
     if (request["filter_count"].is<uint8_t>() || request["filter_count"].is<int>()) {
       const uint8_t v=request["filter_count"].as<uint8_t>(); if(v<3||v>9||v%2==0){JsonDocument e;e["error"]="filter_count_must_be_odd_3_to_9";sendJson(422,e);return;} settings.filterCount=v;
     }
+    if (settings.autoStopPercent <= settings.autoStartPercent) {
+      JsonDocument e; e["error"]="auto_stop_percent_must_exceed_auto_start_percent"; sendJson(422,e); return;
+    }
     if (!isfinite(settings.distanceEmptyCm) || !isfinite(settings.distanceFullCm) ||
         !isfinite(settings.sensorMinDistanceCm) || !isfinite(settings.sensorMaxDistanceCm) ||
         settings.distanceEmptyCm <= settings.distanceFullCm ||
@@ -283,6 +292,7 @@ void HttpApi::handleConfig() {
   }
   JsonDocument response;
   response["auto_start_percent"] = settings.autoStartPercent;
+  response["auto_stop_percent"] = settings.autoStopPercent;
   response["max_runtime_minutes"] = settings.maxPumpRuntimeMs / 60000UL;
   response["tank_timeout_seconds"] = settings.tankTimeoutMs / 1000UL;
   response["float_cutoff_enabled"] = ENABLE_FLOAT_SWITCH_CUTOFF;
