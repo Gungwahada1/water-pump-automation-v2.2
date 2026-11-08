@@ -1,66 +1,61 @@
-# Local API V1 — Water Pump Automation V2.3
+# Local API V1 — Water Pump Automation V2.4
 
-Base URL: `http://192.168.4.1`. All browser calls use the same origin. The API is available only on the Pump Controller SoftAP; it does not require internet or an external router.
+Base URL: `http://192.168.4.1`. API runs on Pump Controller SoftAP only; internet or external router is not required.
 
 ## `GET /api/v1/status`
 
-Returns current Pump Controller state and most recent Tank sample. `sensor_fresh` is calculated from local receive time and configured timeout. Treat `level_percent` as current only when `sensor_fresh` and `sensor_valid` are both true. `sensor_status` is `NO_DATA`, `INVALID`, `STALE`, or `OK`.
-
-Important fields include `mode`, `pump_on`, `level_percent`, `distance_cm`, `sensor_received`, `sensor_valid`, `sensor_fresh`, `sensor_age_ms`, `float_full`, `float_enabled`, `ultrasonic_full`, `pump_runtime_ms`, `runtime_lockout`, `stop_reason`, `uptime_ms`, and `free_heap`.
+Returns current Pump state and last Tank sample. Sensor values are current only when `sensor_fresh` and `sensor_valid` are true. `sensor_status` is `NO_DATA`, `INVALID`, `STALE`, or `OK`.
 
 ## `POST /api/v1/tank`
 
-Required JSON fields retained for V2.2 compatibility:
+Required fields remain compatible with V2.2: `level_percent` (0–100 number), `float_full` (boolean), and `sensor_valid` (boolean). V2.4 Tank also sends `distance_cm`, `boot_id`, `seq`, `firmware`, and `config_version`. `boot_id` and `seq` must be sent together. Repeated/decreasing sequence values from the same boot are rejected with HTTP 409.
 
-```json
-{"level_percent":34.5,"float_full":false,"sensor_valid":true}
-```
-
-V2.3 Tank Controller also sends `distance_cm`, `boot_id`, `seq`, and `firmware`. The sequence increases for each new sensor reading, not each retry/heartbeat. `boot_id` and `seq` must be sent together. Repeated or decreasing sequence numbers from the same boot ID are rejected with HTTP 409 so a replayed old reading cannot keep Tank data fresh. A new boot ID resets the sequence comparison. Older clients without identity fields remain accepted.
-
-A successful response contains the accepted reading and a `tank_config` object. The Tank Controller applies that configuration through the same outgoing HTTP connection; it does not need a fixed client IP or inbound web server.
+The response includes the Pump's desired `tank_config` plus a `config_version`. Tank validates and writes this configuration to its own Preferences NVS before applying it. Tank reports the stored version in its next POST as `config_version`; Pump only then writes and applies the paired settings. Old Tank firmware does not acknowledge versions, so a V2.4 save requires both V2.4 firmwares.
 
 ## `POST /api/v1/control`
 
-Request: `{"action":"ON"}` or `{"action":"OFF"}`.
-
-- `ON` is accepted only when the physical selector is MANUAL, Tank data is received/fresh/valid, ultrasonic level is below the configured stop threshold, and runtime lockout is clear. The controller loop checks these requirements again before switching the SSR. If the request cannot be applied, the API returns HTTP 409 with a `reason`.
-- In both AUTO and MANUAL, ultrasonic stops the pump at the configured `auto_stop_percent` threshold. Its default is 100%. `auto_stop_percent` must be greater than `auto_start_percent`.
-- A dashboard ON request is stopped if its Tank data becomes stale or invalid while it is running.
-- `OFF` is accepted in either mode and receives priority over a queued dashboard ON. Physical buttons remain independent of HTTP processing.
-
-Possible rejection reasons include `physical_selector_must_be_manual`, `tank_data_not_received`, `tank_data_stale`, `ultrasonic_sensor_invalid`, `tank_full_ultrasonic`, `tank_full_float`, `runtime_lockout_active`, and `controller_ack_timeout`.
+Request: `{"action":"ON"}` or `{"action":"OFF"}`. Dashboard ON requires physical MANUAL, fresh valid Tank data, a level below the configured stop threshold, and no runtime lockout. AUTO and MANUAL stop at `auto_stop_percent`. OFF works in either mode.
 
 ## `GET/POST /api/v1/config`
 
-GET returns current settings and `saved_to_nvs:false`. POST accepts any subset of these fields:
+GET returns active settings plus `save_state`, `pump_config_saved`, `tank_config_saved`, `config_version`, and `saved_to_nvs`. POST accepts any subset of the numeric fields below; invalid field types and invalid combined configurations are rejected before staging.
 
-| Field | Allowed values |
+| Field | Range/default |
 |---|---|
-| `auto_start_percent` | 1–80 |
-| `auto_stop_percent` | Greater than `auto_start_percent`, up to 100 |
-| `max_runtime_minutes` | 1–60 (default 25) |
-| `tank_timeout_seconds` | 5–60 |
-| `tank_height_cm` | 30–500 |
-| `distance_empty_cm` | Must exceed full distance and fit sensor range |
-| `distance_full_cm` | At least sensor minimum distance |
-| `sensor_min_distance_cm` | At least 20 and below sensor maximum |
-| `sensor_max_distance_cm` | Above sensor minimum, at most 1000 |
-| `sensor_interval_ms` | 500–10000 |
-| `filter_count` | 3, 5, 7, or 9 |
+| `auto_start_percent` | 1–80%; default 20% |
+| `auto_stop_percent` | Greater than start and at most 100%; default 100% |
+| `max_runtime_minutes` | 1–60; default 25 minutes |
+| `tank_timeout_seconds` | 5–60; default 15 seconds; must be at least sample interval + 4 seconds |
+| `tank_height_cm` | 30–500; default 120 |
+| `distance_empty_cm` | Greater than full distance, at most 1000, within sensor range; default 100 |
+| `distance_full_cm` | At least sensor minimum and less than empty distance; default 25 |
+| `sensor_min_distance_cm` | At least 20 and below sensor maximum; default 20 |
+| `sensor_max_distance_cm` | Above minimum, at most 1000; default 450 |
+| `sensor_interval_ms` | 500–10000; default 1000 |
+| `filter_count` | 3, 5, 7, or 9; default 5 |
 
-The calibration is rejected unless empty distance is greater than full distance, full distance is at least the sensor minimum, and calibration distances fit within the configured sensor range. The minimum sensor distance cannot be set below 20 cm. Tank timeout must be at least the sensor interval plus 4 seconds to allow for sensor acquisition and HTTP delays. The AUTO stop threshold must be greater than the AUTO start threshold. Values are volatile RAM settings and return to firmware defaults after reboot. They are not written to NVS in V2.3. Network credentials remain compile-time settings; the API does not change the AP while clients are connected.
+`auto_start_percent` starts AUTO fill at or below its value. `auto_stop_percent` stops AUTO and MANUAL at or above its value. `max_runtime_minutes` limits one continuous run in both modes. Tank height is a geometry reference; level is calibrated from empty/full distances. Min/max distance bound acceptable echo results; interval sets measurement cadence; filter count is the median-filter window. Float cutoff remains compile-time disabled and is not a dashboard setting in V2.4.
 
-Configuration meanings: `auto_start_percent` starts AUTO filling at or below the selected level; `auto_stop_percent` stops the pump in both AUTO and MANUAL at or above the selected level. `max_runtime_minutes` caps one continuous pump run in both modes (default 25 minutes). `tank_timeout_seconds` defines when Tank communication is stale. `tank_height_cm` is a geometry reference and calibration sanity check; the current level percentage is calculated from `distance_empty_cm` (0%) and `distance_full_cm` (100%). `sensor_min_distance_cm` and `sensor_max_distance_cm` bound accepted echo readings. `sensor_interval_ms` controls Tank sampling cadence. `filter_count` is the median filter window; larger windows reduce spikes but slow response. Float cutoff is currently disabled in V2.3.
+### Configuration save state
 
-## `GET /api/v1/device`
+POST stages the validated candidate and returns HTTP 202. Save requires fresh, valid Tank data. Pump sends the candidate and version in its normal Tank POST response. Tank writes Preferences and applies it, then acknowledges the version in the next heartbeat. Only after that acknowledgment does Pump write its own NVS and apply its runtime settings. Dashboard polls GET until `save_state` becomes `saved` or `failed`.
 
-Returns Pump firmware, uptime, free heap, AP SSID/IP/client count, and last-known Tank firmware/boot ID/sequence. Tank information is marked unknown for older compatible Tank firmware that does not send identity fields.
+Possible states: `pending_tank_ack`, `saved`, `failed`, `tank_sync_required`, and `unsaved_defaults` (safe defaults active but not yet persisted on Pump). If Tank is disconnected/invalid before saving starts, POST returns HTTP 503. If Tank does not acknowledge within 30 seconds, configuration is marked failed and not reported as saved. Dashboard waits up to 30 seconds for confirmation.
 
-## `GET /api/v1/logs`
+`POST /api/v1/config/restore-defaults` stages the documented defaults and follows the same two-device acknowledgment process. Dashboard requires confirmation before calling it.
 
-Returns up to 24 recent events from RAM with `uptime_ms` and `message`. Events are lost on reboot; no wall-clock time is available without a time source.
+## NVS layout
 
-## `POST /api/v1/device/restart`
+Pump namespace: `pumpcfg`, schema version 1. Keys store AUTO start/stop, maximum runtime, Tank timeout, tank height, empty/full calibration distance, sensor min/max distance, read interval, and filter count. The initial Pump defaults are not written automatically; NVS is written only after a confirmed dashboard Save/Restore.
 
-Queues a restart request. The Pump Controller control loop forces the SSR output OFF before restarting. The dashboard asks the user to confirm first. This is not a substitute for an independent physical emergency stop or overflow interlock.
+Tank namespace: `tankcfg`, schema version 1. Keys store tank height, empty/full calibration distance, sensor min/max distance, read interval, filter count, and the acknowledged configuration version. Tank writes only when a new valid version arrives.
+
+Each device validates the complete stored configuration at boot. Missing, unsupported-schema, partial, or invalid data causes safe compile-time defaults to be used. Firmware marks the schema invalid before updating the individual keys and marks it valid only after all writes succeed, so interrupted writes are rejected at next boot. SSR is initialized OFF before config loading/network startup. Pump never persists pump ON state.
+
+## Other endpoints
+
+- `GET /api/v1/device`: Pump/Tank identity and runtime information.
+- `GET /api/v1/logs`: recent RAM-only events.
+- `POST /api/v1/device/restart`: queues a Pump restart after forcing SSR OFF.
+
+Float switch messages over Wi-Fi are not an independent overflow interlock. Use an independent hardwired maximum-level protection for permanent installation.

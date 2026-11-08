@@ -8,6 +8,7 @@
 class TankClient {
  public:
   void begin();
+  bool loadConfig(TankRuntimeConfig& config);
   void updateWiFi();
   bool isConnected() const;
   int postReading(const TankReading& reading, TankRuntimeConfig& config);
@@ -15,4 +16,5 @@ class TankClient {
  private:
   uint32_t lastWiFiAttemptAt_ = 0;
   uint32_t bootId_ = 0;
+  uint32_t configVersion_ = 0;
 };

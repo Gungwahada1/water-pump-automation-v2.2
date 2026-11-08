@@ -57,13 +57,11 @@ void setup() {
   digitalWrite(PIN_STATUS_LED, LOW);
 
   tankSensors.begin();
-  tankConfig.tankHeightCm = TANK_HEIGHT_CM;
-  tankConfig.distanceEmptyCm = DISTANCE_AT_EMPTY_CM;
-  tankConfig.distanceFullCm = DISTANCE_AT_FULL_CM;
-  tankConfig.minDistanceCm = ULTRASONIC_MIN_DISTANCE_CM;
-  tankConfig.maxDistanceCm = ULTRASONIC_MAX_DISTANCE_CM;
-  tankConfig.sampleIntervalMs = SENSOR_READ_INTERVAL_MS;
-  tankConfig.filterCount = LEVEL_SAMPLE_COUNT;
+  const bool tankConfigLoaded = tankClient.loadConfig(tankConfig);
+  Serial.printf("[CONFIG] Tank settings %s NVS; interval=%lu ms filter=%u\n",
+                tankConfigLoaded ? "loaded from" : "using safe defaults (NVS empty/invalid)",
+                static_cast<unsigned long>(tankConfig.sampleIntervalMs),
+                static_cast<unsigned>(tankConfig.filterCount));
   tankClient.begin();
   resetTaskRunning = true;
   if (xTaskCreatePinnedToCore(resetButtonTask, "tank_reset_button", 3072, nullptr, 2, nullptr, 1) != pdPASS) {

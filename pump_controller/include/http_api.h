@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <WebServer.h>
 #include "pump_types.h"
+#include "config_store.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -23,6 +24,8 @@ class HttpApi {
   void handleConfig();
   void handleNotFound();
   void sendJson(int statusCode, JsonDocument& document);
+  uint32_t settingsVersion(const SystemSettings& settings) const;
+  void addTankConfig(JsonDocument& response, const SystemSettings& settings, uint32_t version);
 
   QueueHandle_t tankSamples_ = nullptr;
   QueueHandle_t statusSnapshots_ = nullptr;
@@ -34,4 +37,11 @@ class HttpApi {
   uint32_t lastTankSequence_ = 0;
   bool haveTankSequence_ = false;
   uint32_t nextControlRequestId_ = 1;
+  SystemSettings pendingSettings_{};
+  uint32_t pendingSettingsVersion_ = 0;
+  uint32_t lastTankConfigVersion_ = 0;
+  bool configSavePending_ = false;
+  bool configSaveFailed_ = false;
+  bool pumpConfigSaved_ = false;
+  uint32_t configPendingSince_ = 0;
 };

@@ -6,7 +6,7 @@
 static constexpr char AP_SSID[] = "PumpCtrl-Setup";
 static constexpr char AP_PASSWORD[] = "pumpcontrol22"; // >= 8 characters
 static constexpr uint8_t AP_CHANNEL = 6;
-static constexpr uint8_t AP_MAX_CLIENTS = 2;
+static constexpr uint8_t AP_MAX_CLIENTS = 5;
 
 // Pin mapping: ESP32 DevKit V1 / ESP32-WROOM-32
 static constexpr uint8_t PIN_SSR = 25;

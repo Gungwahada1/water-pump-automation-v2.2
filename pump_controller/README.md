@@ -1,4 +1,4 @@
-# Water Pump Automation V2.3 — Pump Controller
+# Water Pump Automation V2.4 — Pump Controller
 
 Firmware ESP32 Pump Controller untuk ESP32 DevKit V1 / ESP32-WROOM-32. Firmware menyediakan SoftAP, HTTP API pada task tersendiri, state machine AUTO/MANUAL, input tombol dan selector, serta output SSR dengan level OFF saat boot.
 
@@ -9,6 +9,7 @@ pump_controller/
 ├── platformio.ini
 ├── include/
 │   ├── config.h
+│   ├── config_store.h
 │   ├── http_api.h
 │   ├── input_manager.h
 │   ├── pump_controller.h
@@ -16,6 +17,7 @@ pump_controller/
 │   └── status_display.h
 └── src/
     ├── http_api.cpp
+    ├── config_store.cpp
     ├── input_manager.cpp
     ├── main.cpp
     ├── pump_controller.cpp
@@ -145,24 +147,32 @@ Buka `http://192.168.4.1` setelah tersambung ke SoftAP. Dashboard dipisahkan di 
 
 Dashboard ON hanya diterima pada MANUAL fisik dengan data Tank segar/valid, level di bawah ambang `auto_stop_percent`, dan tanpa lockout. Persyaratan dicek di API dan dicek ulang oleh state machine; jika data menjadi stale/invalid saat permintaan dashboard memegang pompa, pompa dihentikan. OFF tidak bergantung pada mode dan diprioritaskan di antrean perintah dashboard. Tombol OFF fisik tetap diproses langsung oleh loop kontrol.
 
-`GET/POST /api/v1/config` mengubah konfigurasi Pump dan kalibrasi sensor Tank sementara di RAM, dengan rentang tervalidasi. Tank menerima konfigurasi kalibrasi, jarak sensor, interval pembacaan, dan filter dalam respons POST pembacaan sensor berikutnya; tidak dibutuhkan koneksi balik ke alamat DHCP Tank. Nilai belum disimpan ke Preferences/NVS dan hilang setelah reboot.
+Pada V2.3, `GET/POST /api/v1/config` mengubah konfigurasi sementara di RAM. Perilaku tersebut digantikan V2.4: tombol Save/Restore menyimpan ke Preferences/NVS dan menunggu acknowledgment Tank sebelum melaporkan sukses.
 
 Endpoint tambahan: `POST /api/v1/control`, `GET /api/v1/device`, `GET /api/v1/logs`, dan `POST /api/v1/device/restart`. Log berisi maksimum 24 event berbasis uptime. Restart diarahkan ke loop kontrol untuk mengatur SSR OFF sebelum reboot.
 
 ### Arti konfigurasi
 
-Semua perubahan di halaman Configuration berlaku sementara sampai Pump Controller reboot. `AUTO start` memicu pengisian saat level turun sampai atau di bawah ambang; `AUTO stop` menghentikan pompa di AUTO maupun MANUAL saat level naik sampai ambang, dan harus lebih tinggi dari AUTO start. Default `Maks runtime` adalah 25 menit dan membatasi satu kali pompa menyala di kedua mode. `Tank timeout` menentukan kapan data komunikasi Tank dianggap stale; otomatisasi AUTO berhenti saat data stale.
+Pada V2.4, perubahan di halaman Configuration tersimpan permanen setelah proses Save selesai. `AUTO start` memicu pengisian saat level turun sampai atau di bawah ambang; `AUTO stop` menghentikan pompa di AUTO maupun MANUAL saat level naik sampai ambang, dan harus lebih tinggi dari AUTO start. Default `Maks runtime` adalah 25 menit dan membatasi satu kali pompa menyala di kedua mode. `Tank timeout` menentukan kapan data komunikasi Tank dianggap stale; otomatisasi AUTO berhenti saat data stale.
 
-`Tinggi tangki` adalah referensi ukuran fisik dan pemeriksaan kalibrasi; persentase saat ini dihitung dari dua jarak kalibrasi, bukan dari tinggi ini saja. `Jarak sensor saat kosong` menjadi titik 0%, sedangkan `Jarak sensor saat penuh` menjadi titik 100% yang dipilih saat kalibrasi. `Jarak minimum/maksimum sensor` membatasi echo yang diterima valid. `Interval baca sensor` mengatur jeda antar pembacaan. `Jumlah sampel filter` menentukan ukuran filter median untuk meredam lonjakan pembacaan, dengan respons lebih lambat bila jumlah sampel ditambah. Cutoff Float masih nonaktif pada V2.3; statusnya ditampilkan untuk kesiapan integrasi, tetapi tidak menghentikan pompa.
+`Tinggi tangki` adalah referensi ukuran fisik dan pemeriksaan kalibrasi; persentase saat ini dihitung dari dua jarak kalibrasi, bukan dari tinggi ini saja. `Jarak sensor saat kosong` menjadi titik 0%, sedangkan `Jarak sensor saat penuh` menjadi titik 100% yang dipilih saat kalibrasi. `Jarak minimum/maksimum sensor` membatasi echo yang diterima valid. `Interval baca sensor` mengatur jeda antar pembacaan. `Jumlah sampel filter` menentukan ukuran filter median untuk meredam lonjakan pembacaan, dengan respons lebih lambat bila jumlah sampel ditambah. Cutoff Float tetap nonaktif pada V2.4; statusnya ditampilkan untuk kesiapan integrasi, tetapi tidak menghentikan pompa.
 
 Float switch sengaja tetap nonaktif melalui `ENABLE_FLOAT_SWITCH_CUTOFF=false`. Payload dan logika cutoff tetap dipertahankan untuk aktivasi kemudian; verifikasi kontak dan wiring sebelum diaktifkan.
 
 Endpoint dan rentang validasi rinci tersedia di [`../docs/api-v1.md`](../docs/api-v1.md). Ganti password AP bawaan di `include/config.h` dan samakan nilainya pada `tank_controller/include/config.h` sebelum menggunakan kontrol dashboard di luar pengujian pribadi.
 
+## V2.4 — Configuration Manager + NVS
+
+Pump menyimpan konfigurasi namespace `pumpcfg` (schema 1) dengan `Preferences`: AUTO start/stop, runtime maksimum, Tank timeout, tank height, jarak kosong/penuh, batas minimum/maksimum sensor, interval baca, dan filter count. Default runtime tetap 25 menit; nilai boot default dipakai jika namespace belum ada atau data tersimpan tidak valid. Float cutoff tetap compile-time disabled dan tidak menjadi field yang bisa diedit.
+
+Tekan **Simpan permanen ke Pump + Tank** pada dashboard. Pump validasi kandidat dan hanya memulai transaksi ketika Tank mengirim data valid dan segar. Tank menerima konfigurasi melalui respons POST yang sudah ada, menulis NVS namespace `tankcfg`, menerapkan nilai, lalu mengirim acknowledgment versi pada heartbeat berikutnya. Setelah ack cocok, Pump menyimpan NVS dan menerapkan setting. Dashboard hanya menyatakan berhasil setelah kedua langkah terkonfirmasi. Kegagalan komunikasi/NVS ditampilkan sebagai gagal; nilai yang invalid tidak diterapkan.
+
+**Restore Default** meminta konfirmasi lalu mengirim seluruh default melalui proses transaksi yang sama. Seluruh field diterapkan tanpa reboot; proses pengukuran Tank memakai konfigurasi baru mulai sampel berikutnya. Dokumentasi endpoint dan rentang nilai ada di [`../docs/api-v1.md`](../docs/api-v1.md).
+
 
 ### Checklist tambahan dashboard V2.3
 
-1. Sambungkan satu HP/laptop ke AP bersama Tank Controller dan buka `http://192.168.4.1`; pastikan halaman tampil tanpa akses internet. AP mengizinkan maksimal dua client, sehingga Tank dan satu client dashboard dapat tersambung bersamaan.
+1. Sambungkan Tank Controller dan hingga empat perangkat dashboard ke AP `PumpCtrl-Setup` (maksimal lima client total), lalu buka `http://192.168.4.1`; pastikan halaman tampil tanpa akses internet.
 2. Pastikan level, jarak, status sensor, mode, pompa, dan umur data berubah dari pembacaan Tank. Putuskan Tank dan pastikan status menjadi STALE setelah timeout serta nilai level tidak ditampilkan sebagai nilai terkini.
 3. Uji dashboard ON pada AUTO (harus ditolak), pada MANUAL dengan data segar/valid di bawah `auto_stop_percent` (dapat diterima), dan dengan data tidak ada/stale/invalid atau level sudah mencapai `auto_stop_percent` (harus ditolak). Lakukan tanpa beban pompa, gunakan indikator tegangan rendah pada sisi output SSR.
 4. Saat permintaan dashboard menyalakan pompa, putuskan data Tank; pastikan Pump Controller mematikan output. Uji dashboard OFF pada kedua mode. Uji juga tombol OFF fisik saat dashboard melakukan polling.

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "config.h"
+#include "config_store.h"
 #include "http_api.h"
 #include "input_manager.h"
 #include "pump_controller.h"
@@ -52,7 +53,7 @@ void setup() {
   delay(200);
   Serial.println();
   Serial.println("========================================");
-  Serial.println(" Water Pump Automation V2.3");
+  Serial.println(" Water Pump Automation V2.4");
   Serial.println(" ESP32 Pump Controller - booting");
   Serial.println("========================================");
   Serial.printf("[BOOT] SSR output initialized OFF on GPIO%d (OFF level %s)\n",
@@ -83,12 +84,13 @@ void setup() {
   dashboardCommands = xQueueCreate(4, sizeof(DashboardCommand));
   controlResults = xQueueCreate(1, sizeof(ControlResult));
   runtimeSettings = xQueueCreate(1, sizeof(SystemSettings));
-  SystemSettings defaultSettings;
-  defaultSettings.autoStartPercent = AUTO_START_LEVEL_PERCENT;
-  defaultSettings.autoStopPercent = AUTO_STOP_LEVEL_DEFAULT_PERCENT;
-  defaultSettings.maxPumpRuntimeMs = MAX_PUMP_RUNTIME_MS;
-  defaultSettings.tankTimeoutMs = SENSOR_TIMEOUT_MS;
-  if (runtimeSettings != nullptr) xQueueOverwrite(runtimeSettings, &defaultSettings);
+  SystemSettings startupSettings;
+  const bool loadedFromNvs = ConfigStore::load(startupSettings);
+  if (runtimeSettings != nullptr) xQueueOverwrite(runtimeSettings, &startupSettings);
+  Serial.printf("[CONFIG] Pump settings %s NVS; start=%.1f%% stop=%.1f%% runtime=%lu min\n",
+                loadedFromNvs ? "loaded from" : "using safe defaults (NVS empty/invalid)",
+                startupSettings.autoStartPercent, startupSettings.autoStopPercent,
+                static_cast<unsigned long>(startupSettings.maxPumpRuntimeMs / 60000UL));
   if (tankSamples == nullptr || statusSnapshots == nullptr || dashboardCommands == nullptr || controlResults == nullptr || runtimeSettings == nullptr) {
     Serial.println("[FATAL] could not allocate HTTP queues; SSR stays OFF");
     while (true) { digitalWrite(PIN_SSR, SSR_OFF_LEVEL); delay(1000); }
